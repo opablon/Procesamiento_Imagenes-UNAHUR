@@ -39,7 +39,7 @@ El proyecto se desarrolla bajo un estricto enfoque académico, implementando la 
 
 3. Instalar las dependencias necesarias:
    ```bash
-   pip install numpy matplotlib
+   pip install -r requirements.txt
    ```
 
 4. Iniciar la aplicación:

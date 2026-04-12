@@ -34,7 +34,7 @@ El proyecto se desarrolla bajo un estricto enfoque académico, implementando la 
 2. Crear y activar un entorno virtual (recomendado):
    ```bash
    python -m venv venv
-   source venv/bin/activate  # En Linux/Mac
+   source venv/bin/activate
    ```
 
 3. Instalar las dependencias necesarias:
@@ -46,3 +46,8 @@ El proyecto se desarrolla bajo un estricto enfoque académico, implementando la 
    ```bash
    python main.py
    ```
+
+Si al ejecutar la aplicación recibes un error relacionado con tkinter, asegúrate de tener instalada la librería en el sistema:
+```bash
+sudo apt update && sudo apt install python3-tk
+```

@@ -18,6 +18,7 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+.agents/
 
 # IDEs/Editors
 .vscode/

@@ -1,4 +1,3 @@
-import sys
 from gui.ventana_principal import iniciar_aplicacion
 
 if __name__ == "__main__":

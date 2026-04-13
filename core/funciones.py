@@ -24,7 +24,10 @@ def _cargar_raw_8bit(ruta, ancho, alto):
 
     # Validación de tamaño físico vs resolución solicitada
     if len(datos) < tamanio_esperado:
-        raise ValueError(f"El archivo es demasiado pequeño para la resolución indicada ({ancho}x{alto}).")
+        raise ValueError(
+            f"El archivo no contiene suficientes datos para la resolución indicada ({ancho}x{alto})."
+            " Verifique las dimensiones o si el archivo está corrupto."
+        )
 
     if len(datos) >= tamanio_esperado * 3:
         # Caso RGB

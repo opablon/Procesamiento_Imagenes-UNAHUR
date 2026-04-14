@@ -50,14 +50,22 @@ class AppProcesamiento:
         self.btn_copiar = tk.Button(tb, text="Copiar Región", command=self.copiar)
         self.btn_promedio = tk.Button(tb, text="Promedio Región", command=self.promedio)
         
-        for b in [self.btn_pixel, self.btn_mod_pixel, self.btn_resta, self.btn_selector, self.btn_copiar, self.btn_promedio]:
-            b.pack(fill=tk.X, padx=5, pady=2)
-
         self.botones_herramientas = [self.btn_pixel, self.btn_mod_pixel, self.btn_selector]
         self.botones_roi = [self.btn_copiar, self.btn_promedio]
         self.botones_operaciones = [self.btn_resta]
-        self.todos_los_botones = self.botones_herramientas + self.botones_roi + self.botones_operaciones
+        
+        self.todos_los_botones = [
+            self.btn_pixel, 
+            self.btn_mod_pixel, 
+            self.btn_resta, 
+            self.btn_selector, 
+            self.btn_copiar, 
+            self.btn_promedio
+        ]
 
+        for b in self.todos_los_botones:
+            b.pack(fill=tk.X, padx=5, pady=2)
+        
         # --- Barra de Estado ---
         self.lbl_status = tk.Label(self.root, text="Listo", anchor=tk.W)
         self.lbl_status.pack(side=tk.BOTTOM, fill=tk.X)

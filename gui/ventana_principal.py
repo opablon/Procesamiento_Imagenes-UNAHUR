@@ -47,10 +47,8 @@ class AppProcesamiento:
         self.btn_mod_pixel = tk.Button(tb, text="Modificar Píxel", command=lambda: self._set_modo("mod_pixel", self.btn_mod_pixel))
         self.btn_resta = tk.Button(tb, text="Restar Imágenes", command=self.restar)
         self.btn_selector = tk.Button(tb, text="Seleccionar Región", command=lambda: self._set_modo("selector", self.btn_selector))
-        
-        # Gestión de estados inicial (Botones deshabilitados hasta tener datos o ROI)
-        self.btn_copiar = tk.Button(tb, text="Copiar Región", command=self.copiar, state=tk.DISABLED)
-        self.btn_promedio = tk.Button(tb, text="Promedio Región", command=self.promedio, state=tk.DISABLED)
+        self.btn_copiar = tk.Button(tb, text="Copiar Región", command=self.copiar)
+        self.btn_promedio = tk.Button(tb, text="Promedio Región", command=self.promedio)
         
         for b in [self.btn_pixel, self.btn_mod_pixel, self.btn_resta, self.btn_selector, self.btn_copiar, self.btn_promedio]:
             b.pack(fill=tk.X, padx=5, pady=2)

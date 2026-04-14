@@ -141,7 +141,17 @@ def restar_imagenes(img1, img2):
         r_b = m1[:, :, 2] - m2
         resultado = (r_r + r_g + r_b) / 3
 
-    return np.clip(resultado, 0, 255).astype(np.uint8)
+    min_val = np.min(resultado)
+    max_val = np.max(resultado)
+
+    # EVITAR DIVISIÓN POR CERO
+    if max_val - min_val == 0:
+        return np.zeros(resultado.shape, dtype=np.uint8)
+
+    # ESCALADO
+    resultado = (resultado - min_val) * (255.0 / (max_val - min_val))
+    
+    return resultado.astype(np.uint8)
 
 # --- ESTADÍSTICAS DE REGIÓN ---
 

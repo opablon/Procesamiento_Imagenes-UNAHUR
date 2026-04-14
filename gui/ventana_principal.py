@@ -149,7 +149,10 @@ class AppProcesamiento:
                 self.lbl_status.config(text=f"Px ({x},{y}): {obtener_pixel(self.matriz_actual, x, y)}")
             
             elif self.modo_activo == "mod_pixel":
-                nv = simpledialog.askstring("Modificar", f"Valor RGB/Gris para ({x},{y}):")
+                # Creamos un mensaje dinámico según los canales de la imagen
+                msg = "Valor RGB (ej: 255,0,0):" if self.matriz_actual.ndim == 3 else "Valor Gris (0-255):"
+                
+                nv = simpledialog.askstring("Modificar", f"Px ({x},{y})\n{msg}")
                 if nv:
                     val = np.fromstring(nv, sep=',', dtype=np.uint8) if self.matriz_actual.ndim == 3 else int(nv)
                     self.matriz_actual = modificar_pixel(self.matriz_actual, x, y, val)

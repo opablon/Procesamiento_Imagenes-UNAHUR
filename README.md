@@ -28,7 +28,7 @@ cd Procesamiento_Imagenes-UNAHUR
 ### 2. Crear y activar el Entorno Virtual
 Es recomendable usar un entorno virtual para mantener las dependencias aisladas del sistema.
 
-**En Linux (Ubuntu):**
+**En Linux:**
 ```bash
 python3 -m venv venv
 source venv/bin/activate
@@ -46,14 +46,18 @@ Con el entorno activo, instala las librerías necesarias:
 pip install -r requirements.txt
 ```
 
-> Nota para usuarios de Linux: Si al ejecutar la aplicación recibes un error relacionado con tkinter, asegúrate de tener el paquete instalado en tu sistema con:
-```bash
-sudo apt update && sudo apt install python3-tk
-```
+> **Notas sobre la interfaz gráfica (GUI):**
+> - **En Windows:** Tkinter se incluye automáticamente con la instalación de Python. No requiere pasos adicionales.
+> - **En Linux:** Si recibes un error de "tkinter not found", debes instalar el soporte de Tk para Python usando el gestor de paquetes de tu distribución. Ej. en Ubuntu/Debian:
+> ```bash
+>   sudo apt update && sudo apt install python3-tk
+> ```
 
 ### 4. Ejecutar la aplicación
 Inicia el visualizador corriendo el punto de entrada principal:
+```bash
 python main.py
+```
 
 ---
 

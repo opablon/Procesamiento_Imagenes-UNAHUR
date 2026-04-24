@@ -16,21 +16,3 @@ def preparar_histograma(histograma, titulo="Histograma de Niveles de Gris"):
     
     fig.tight_layout()
     return fig # DEVOLVEMOS LA FIGURA
-
-def preparar_grafico_ruido(datos_ruido, titulo="Distribución de Ruido"):
-    """
-    Crea una figura con el histograma de los datos de ruido generados.
-    """
-    fig = plt.figure(figsize=(5, 4))
-    ax = fig.add_subplot(111)
-
-    ax.hist(datos_ruido.flatten(), bins=100, color='royalblue', 
-            edgecolor='black', alpha=0.7)
-
-    ax.set_title(titulo)
-    ax.set_xlabel("Magnitud del Ruido")
-    ax.set_ylabel("Frecuencia")
-    ax.grid(True, alpha=0.3)
-
-    fig.tight_layout()
-    return fig # DEVOLVEMOS LA FIGURA

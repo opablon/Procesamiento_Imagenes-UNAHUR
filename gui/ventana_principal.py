@@ -7,16 +7,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 from matplotlib.widgets import RectangleSelector
 
-from core.funciones import (
-    cargar_imagen,
-    guardar_imagen,
-    obtener_estadisticas_region,
-    restar_imagenes,
-    copiar_region,
-    obtener_pixel,
-    modificar_pixel
-)
-
+import core.funciones as funciones
+from gui import visualizaciones
 
 class AppProcesamiento:
     def __init__(self, root, matriz=None, titulo=None):
@@ -28,6 +20,7 @@ class AppProcesamiento:
         self.area_seleccionada = False
         
         self.root.geometry("800x600")
+        self.root.minsize(800, 600)
         self.root.bind_all(
             "<KP_Enter>", 
             lambda e: e.widget.event_generate("<Return>") if isinstance(e.widget, (tk.Entry, tk.Button)) else None
@@ -39,33 +32,6 @@ class AppProcesamiento:
             ("Todos", "*")
         ]
 
-        # --- Panel de Herramientas ---
-        tb = tk.Frame(self.root, width=150, bd=1)
-        tb.pack(side=tk.LEFT, fill=tk.Y)
-        
-        self.btn_pixel = tk.Button(tb, text="Ver Píxel", command=lambda: self._set_modo("ver_pixel", self.btn_pixel))
-        self.btn_mod_pixel = tk.Button(tb, text="Modificar Píxel", command=lambda: self._set_modo("mod_pixel", self.btn_mod_pixel))
-        self.btn_resta = tk.Button(tb, text="Restar Imágenes", command=self.restar)
-        self.btn_selector = tk.Button(tb, text="Seleccionar Región", command=lambda: self._set_modo("selector", self.btn_selector))
-        self.btn_copiar = tk.Button(tb, text="Copiar Región", command=self.copiar)
-        self.btn_promedio = tk.Button(tb, text="Promedio Región", command=self.promedio)
-        
-        self.botones_herramientas = [self.btn_pixel, self.btn_mod_pixel, self.btn_selector]
-        self.botones_roi = [self.btn_copiar, self.btn_promedio]
-        self.botones_operaciones = [self.btn_resta]
-        
-        self.todos_los_botones = [
-            self.btn_pixel, 
-            self.btn_mod_pixel, 
-            self.btn_resta, 
-            self.btn_selector, 
-            self.btn_copiar, 
-            self.btn_promedio
-        ]
-
-        for b in self.todos_los_botones:
-            b.pack(fill=tk.X, padx=5, pady=2)
-        
         # --- Barra de Estado ---
         self.lbl_status = tk.Label(self.root, text="Listo", anchor=tk.W)
         self.lbl_status.pack(side=tk.BOTTOM, fill=tk.X)
@@ -74,17 +40,53 @@ class AppProcesamiento:
         menu = tk.Menu(self.root)
         self.root.config(menu=menu)
         
-        arch = tk.Menu(menu, tearoff=0)
-        arch.add_command(label="Abrir", command=self.cargar)
-        arch.add_command(label="Guardar", command=self.guardar)
-        arch.add_command(label="Cerrar Imagen", command=self.cerrar_imagen)
-        arch.add_separator()
-        arch.add_command(label="Salir", command=self.root.quit)
-        menu.add_cascade(label="Archivo", menu=arch)
+        self.menu_archivo = tk.Menu(menu, tearoff=0)
+        self.menu_archivo.add_command(label="Abrir Imagen...", command=self.cargar)
+        self.menu_archivo.add_command(label="Guardar Imagen Como...", command=self.guardar)
+        self.menu_archivo.add_command(label="Cerrar Imagen", command=self.cerrar_imagen)
+        self.menu_archivo.add_separator()
+        self.menu_archivo.add_command(label="Salir", command=self.root.quit)
+        menu.add_cascade(label="Archivo", menu=self.menu_archivo)
+
+        # Menú TP0
+        self.menu_tp0 = tk.Menu(menu, tearoff=0)
+        self.menu_tp0.add_command(label="Ver Píxel", command=lambda: self._set_modo("ver_pixel"), state=tk.DISABLED)
+        self.menu_tp0.add_command(label="Modificar Píxel", command=lambda: self._set_modo("mod_pixel"), state=tk.DISABLED)
+        self.menu_tp0.add_command(label="Seleccionar Región", command=lambda: self._set_modo("selector"), state=tk.DISABLED)
+        self.menu_tp0.add_command(label="Copiar Región", command=self.copiar, state=tk.DISABLED)
+        self.menu_tp0.add_command(label="Promedio Región", command=self.promedio, state=tk.DISABLED)
+        self.menu_tp0.add_command(label="Restar Imágenes", command=self.restar, state=tk.DISABLED)
+        menu.add_cascade(label="TP0", menu=self.menu_tp0)
+
+        # Menú TP1
+        self.menu_tp1 = tk.Menu(menu, tearoff=0)
+        self.menu_tp1.add_command(label="Ver Histograma", command=self.mostrar_histograma, state=tk.DISABLED)
+        self.menu_tp1.add_command(label="Transformación Potencia", command=self.transformacion_potencia, state=tk.DISABLED)
+        self.menu_tp1.add_command(label="Obtener Negativo", command=self.negativo, state=tk.DISABLED)
+        self.menu_tp1.add_command(label="Ecualizar Histograma", command=self.ecualizacion, state=tk.DISABLED)
+        self.menu_tp1.add_command(label="Umbralización", command=self.umbralizacion, state=tk.DISABLED)
+        
+        # Submenú Ruidos
+        self.menu_ruidos = tk.Menu(self.menu_tp1, tearoff=0)
+        self.menu_ruidos.add_command(label="Contaminar Gaussiano", command=self.ruido_gaussiano, state=tk.DISABLED)
+        self.menu_ruidos.add_command(label="Contaminar Exponencial", command=self.ruido_exponencial, state=tk.DISABLED)
+        self.menu_ruidos.add_command(label="Contaminar Sal y Pimienta", command=self.ruido_sal_pimienta, state=tk.DISABLED)
+        self.menu_tp1.add_cascade(label="Ruidos", menu=self.menu_ruidos, state=tk.DISABLED)
+        
+        # Submenú Filtros
+        self.menu_filtros = tk.Menu(self.menu_tp1, tearoff=0)
+        self.menu_filtros.add_command(label="Filtro Media", command=self.filtro_media, state=tk.DISABLED)
+        self.menu_filtros.add_command(label="Filtro Mediana", command=self.filtro_mediana, state=tk.DISABLED)
+        self.menu_filtros.add_command(label="Mediana Ponderada", command=self.filtro_mediana_ponderada, state=tk.DISABLED)
+        self.menu_filtros.add_command(label="Filtro Gaussiano", command=self.filtro_gaussiano, state=tk.DISABLED)
+        self.menu_filtros.add_command(label="Realce de Bordes", command=self.filtro_bordes, state=tk.DISABLED)
+        self.menu_tp1.add_cascade(label="Filtros", menu=self.menu_filtros, state=tk.DISABLED)
+
+        menu.add_cascade(label="TP1", menu=self.menu_tp1)
 
         # --- Visor (Matplotlib integrado en Tkinter) ---
         f_visor = tk.Frame(self.root)
-        f_visor.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        f_visor.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         self.fig = Figure(figsize=(5, 4), dpi=100)
         self.fig.patch.set_facecolor('#f0f0f0')
@@ -98,32 +100,45 @@ class AppProcesamiento:
         self.fig.canvas.mpl_connect('button_press_event', self._al_click)
 
         if self.matriz_actual is not None: 
+            self._cambiar_estado_menus(tk.NORMAL)
             self._dibujar()
         else:
             self.cerrar_imagen()
 
-    def _set_modo(self, modo, btn):
-        """Gestiona el modo activo de la interfaz visual y la apariencia de botones."""
+    def _cambiar_estado_menus(self, estado):
+        """Habilita o deshabilita las opciones de procesamiento de los menús."""
+        opciones_tp0 = ["Ver Píxel", "Modificar Píxel", "Seleccionar Región", "Restar Imágenes"]
+        for op in opciones_tp0:
+            self.menu_tp0.entryconfig(op, state=estado)
+        
+        opciones_tp1 = ["Ver Histograma", "Transformación Potencia", "Obtener Negativo", "Ecualizar Histograma", "Umbralización", "Ruidos", "Filtros"]
+        for op in opciones_tp1:
+            self.menu_tp1.entryconfig(op, state=estado)
+        
+        opciones_ruidos = ["Contaminar Gaussiano", "Contaminar Exponencial", "Contaminar Sal y Pimienta"]
+        for op in opciones_ruidos:
+            self.menu_ruidos.entryconfig(op, state=estado)
+            
+        opciones_filtros = ["Filtro Media", "Filtro Mediana", "Mediana Ponderada", "Filtro Gaussiano", "Realce de Bordes"]
+        for op in opciones_filtros:
+            self.menu_filtros.entryconfig(op, state=estado)
+
+    def _set_modo(self, modo):
+        """Gestiona el modo activo de la interfaz visual."""
         self.modo_activo = modo
         self.selector.set_visible(modo == "selector")
         self.selector.set_active(modo == "selector")
-        
-        for b in self.botones_herramientas: 
-            b.config(relief=tk.RAISED)
-        
-        if btn: 
-            btn.config(relief=tk.SUNKEN)
 
     def _resetear(self):
         """Reinicia la selección y el modo activo reseteando el visor (Ej. Botón Escape)."""
         self.area_seleccionada = False
         self.selector.extents = (0, 0, 0, 0)
         
-        # Deshabilita los botones de ROI si no hay selección válida
-        for b in self.botones_roi: 
-            b.config(state=tk.DISABLED)
+        # Deshabilita los comandos de ROI si no hay selección válida
+        self.menu_tp0.entryconfig("Copiar Región", state=tk.DISABLED)
+        self.menu_tp0.entryconfig("Promedio Región", state=tk.DISABLED)
             
-        self._set_modo(None, None)
+        self._set_modo(None)
 
     def _al_seleccionar(self, eclick, erelease):
         """Callback al finalizar selección de ROI. Habilita herramientas dependientes si la ROI es válida."""
@@ -133,9 +148,9 @@ class AppProcesamiento:
             
         self.area_seleccionada = True
         
-        # Gestión de estados: Habilita los botones de ROI
-        for b in self.botones_roi: 
-            b.config(state=tk.NORMAL)
+        # Gestión de estados: Habilita los comandos de ROI
+        self.menu_tp0.entryconfig("Copiar Región", state=tk.NORMAL)
+        self.menu_tp0.entryconfig("Promedio Región", state=tk.NORMAL)
 
     def _al_click(self, e):
         """Maneja interacciones puntuales (Ver/Modificar Píxel)."""
@@ -146,7 +161,7 @@ class AppProcesamiento:
         
         try:
             if self.modo_activo == "ver_pixel":
-                self.lbl_status.config(text=f"Px ({x},{y}): {obtener_pixel(self.matriz_actual, x, y)}")
+                self.lbl_status.config(text=f"Px ({x},{y}): {funciones.obtener_pixel(self.matriz_actual, x, y)}")
             
             elif self.modo_activo == "mod_pixel":
                 # Creamos un mensaje dinámico según los canales de la imagen
@@ -155,7 +170,7 @@ class AppProcesamiento:
                 nv = simpledialog.askstring("Modificar", f"Px ({x},{y})\n{msg}")
                 if nv:
                     val = np.fromstring(nv, sep=',', dtype=np.uint8) if self.matriz_actual.ndim == 3 else int(nv)
-                    self.matriz_actual = modificar_pixel(self.matriz_actual, x, y, val)
+                    self.matriz_actual = funciones.modificar_pixel(self.matriz_actual, x, y, val)
                     self._dibujar()
                     
         except Exception as err: 
@@ -202,6 +217,14 @@ class AppProcesamiento:
         
         return xm, ym, xM, yM
 
+    def _mostrar_ventana_grafico(self, fig, titulo):
+        """Abre un Toplevel simple y muestra una figura de Matplotlib."""
+        top = tk.Toplevel(self.root)
+        top.title(titulo)
+        canvas = FigureCanvasTkAgg(fig, master=top)
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        canvas.draw()
+
     def cargar(self):
         """Carga en memoria una imagen y actualiza UI."""
         ruta = filedialog.askopenfilename(filetypes=self.filtros)
@@ -213,14 +236,13 @@ class AppProcesamiento:
             if dim is False: 
                 return  # Usuario canceló el diálogo RAW
                 
-            self.matriz_actual = cargar_imagen(ruta, *dim) if dim else cargar_imagen(ruta)
+            self.matriz_actual = funciones.cargar_imagen(ruta, *dim) if dim else funciones.cargar_imagen(ruta)
             self.nombre_archivo = os.path.basename(ruta)
             self.root.title(f"Visualizador - {self.nombre_archivo}")
             self._dibujar()
             
             # Gestión de estados: Habilita herramientas con imagen activa
-            for b in self.botones_herramientas + self.botones_operaciones:
-                b.config(state=tk.NORMAL)
+            self._cambiar_estado_menus(tk.NORMAL)
                 
             self.lbl_status.config(text=f"Imagen cargada: {self.nombre_archivo}")
             
@@ -240,8 +262,7 @@ class AppProcesamiento:
         self.canvas_mpl.draw()
         self.lbl_status.config(text="Imagen cerrada")
         
-        for b in self.todos_los_botones:
-            b.config(state=tk.DISABLED)
+        self._cambiar_estado_menus(tk.DISABLED)
             
         self._resetear()
 
@@ -256,7 +277,7 @@ class AppProcesamiento:
             ruta = filedialog.asksaveasfilename(initialfile=n, filetypes=self.filtros)
             
             if ruta: 
-                guardar_imagen(self.matriz_actual, ruta)
+                funciones.guardar_imagen(self.matriz_actual, ruta)
                 
         except Exception as e: 
             messagebox.showerror("Error", str(e))
@@ -275,8 +296,8 @@ class AppProcesamiento:
             if dim is False: 
                 return
                 
-            m2 = cargar_imagen(ruta2, *dim) if dim else cargar_imagen(ruta2)
-            res = restar_imagenes(self.matriz_actual, m2)
+            m2 = funciones.cargar_imagen(ruta2, *dim) if dim else funciones.cargar_imagen(ruta2)
+            res = funciones.restar_imagenes(self.matriz_actual, m2)
             
             # Recursividad con Toplevel para visualización paralela
             AppProcesamiento(tk.Toplevel(self.root), res, f"{self.nombre_archivo}_resta")
@@ -291,7 +312,7 @@ class AppProcesamiento:
             
         try:
             coords = self._obtener_roi_validada()
-            res = copiar_region(self.matriz_actual, *coords)
+            res = funciones.copiar_region(self.matriz_actual, *coords)
             
             # Recursividad con Toplevel
             AppProcesamiento(tk.Toplevel(self.root), res, f"{self.nombre_archivo}_copia")
@@ -306,10 +327,153 @@ class AppProcesamiento:
             
         try:
             coords = self._obtener_roi_validada()
-            cant, prom = obtener_estadisticas_region(self.matriz_actual, *coords)
+            cant, prom = funciones.obtener_estadisticas_region(self.matriz_actual, *coords)
             self.lbl_status.config(text=f"Región: {cant}px | Promedio: {prom}")
             
         except Exception as e: 
+            messagebox.showerror("Error", str(e))
+
+    def transformacion_potencia(self):
+        """Aclara u oscurece la imagen según el valor de Gamma."""
+        if self.matriz_actual is None: return
+        gamma = simpledialog.askfloat("Gamma", "Ingrese valor de Gamma (0 < gamma < 2):", minvalue=0.01, maxvalue=1.99)
+        if gamma is None: return
+        try:
+            res = funciones.aplicar_transformacion_potencia(self.matriz_actual, gamma)
+            AppProcesamiento(tk.Toplevel(self.root), res, f"{self.nombre_archivo}_potencia_{gamma}")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def negativo(self):
+        """Genera la imagen negativa."""
+        if self.matriz_actual is None: return
+        try:
+            res = funciones.obtener_negativo(self.matriz_actual)
+            AppProcesamiento(tk.Toplevel(self.root), res, f"{self.nombre_archivo}_negativo")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def ecualizacion(self):
+        """Aplica ecualización global de histograma."""
+        if self.matriz_actual is None: return
+        try:
+            res = funciones.ecualizar_histograma(self.matriz_actual)
+            AppProcesamiento(tk.Toplevel(self.root), res, f"{self.nombre_archivo}_ecualizado")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def mostrar_histograma(self):
+        """Muestra el histograma de la imagen actual."""
+        if self.matriz_actual is None: 
+            return
+        try:
+            histograma = funciones.obtener_histograma_gris(self.matriz_actual)
+            fig = visualizaciones.preparar_histograma(histograma)
+            self._mostrar_ventana_grafico(fig, "Histograma")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def ruido_gaussiano(self):
+        """Aplica ruido gaussiano."""
+        if self.matriz_actual is None: return
+        densidad = simpledialog.askfloat("Densidad", "Densidad de ruido (0-100):", minvalue=0, maxvalue=100)
+        if densidad is None: return
+        sigma = simpledialog.askfloat("Sigma", "Desvío estándar (sigma):", minvalue=0)
+        if sigma is None: return
+        try:
+            res = funciones.aplicar_ruido_aditivo_gaussiano(self.matriz_actual, densidad, sigma)
+            AppProcesamiento(tk.Toplevel(self.root), res, f"{self.nombre_archivo}_r_gauss")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def ruido_exponencial(self):
+        """Aplica ruido exponencial."""
+        if self.matriz_actual is None: return
+        porcentaje = simpledialog.askfloat("Porcentaje", "Porcentaje de ruido (0-100):", minvalue=0, maxvalue=100)
+        if porcentaje is None: return
+        lambd = simpledialog.askfloat("Lambda", "Parámetro lambda (>0):", minvalue=0.0001)
+        if lambd is None: return
+        try:
+            res = funciones.aplicar_ruido_multiplicativo_exponencial(self.matriz_actual, porcentaje, lambd)
+            AppProcesamiento(tk.Toplevel(self.root), res, f"{self.nombre_archivo}_r_exp")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def ruido_sal_pimienta(self):
+        """Aplica ruido Sal y Pimienta."""
+        if self.matriz_actual is None: return
+        densidad = simpledialog.askfloat("Densidad", "Densidad de ruido (0-100):", minvalue=0, maxvalue=100)
+        if densidad is None: return
+        try:
+            res = funciones.aplicar_ruido_sal_y_pimienta(self.matriz_actual, densidad)
+            AppProcesamiento(tk.Toplevel(self.root), res, f"{self.nombre_archivo}_r_sp")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def filtro_media(self):
+        """Aplica Filtro de la Media."""
+        if self.matriz_actual is None: return
+        tamano = simpledialog.askinteger("Tamaño", "Tamaño de la máscara (impar):", minvalue=3)
+        if tamano is None: return
+        try:
+            res = funciones.aplicar_filtro_media(self.matriz_actual, tamano)
+            AppProcesamiento(tk.Toplevel(self.root), res, f"{self.nombre_archivo}_f_media")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def filtro_mediana(self):
+        """Aplica Filtro de la Mediana."""
+        if self.matriz_actual is None: return
+        tamano = simpledialog.askinteger("Tamaño", "Tamaño de la máscara (impar):", minvalue=3)
+        if tamano is None: return
+        try:
+            res = funciones.aplicar_filtro_mediana(self.matriz_actual, tamano)
+            AppProcesamiento(tk.Toplevel(self.root), res, f"{self.nombre_archivo}_f_mediana")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def filtro_mediana_ponderada(self):
+        """Aplica Filtro de la Mediana Ponderada."""
+        if self.matriz_actual is None: return
+        tamano = simpledialog.askinteger("Tamaño", "Tamaño de la máscara (impar):", minvalue=3)
+        if tamano is None: return
+        try:
+            res = funciones.aplicar_filtro_mediana_ponderada(self.matriz_actual, tamano)
+            AppProcesamiento(tk.Toplevel(self.root), res, f"{self.nombre_archivo}_f_med_pond")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def filtro_gaussiano(self):
+        """Aplica Filtro Gaussiano."""
+        if self.matriz_actual is None: return
+        sigma = simpledialog.askfloat("Sigma", "Desvío estándar (sigma > 0):", minvalue=0.01)
+        if sigma is None: return
+        try:
+            res = funciones.aplicar_filtro_gaussiano(self.matriz_actual, sigma)
+            AppProcesamiento(tk.Toplevel(self.root), res, f"{self.nombre_archivo}_f_gauss")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def filtro_bordes(self):
+        """Aplica Filtro Realce de Bordes."""
+        if self.matriz_actual is None: return
+        tamano = simpledialog.askinteger("Tamaño", "Tamaño de la máscara (impar):", minvalue=3)
+        if tamano is None: return
+        try:
+            res = funciones.aplicar_filtro_realce_de_bordes(self.matriz_actual, tamano)
+            AppProcesamiento(tk.Toplevel(self.root), res, f"{self.nombre_archivo}_f_bordes")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def umbralizacion(self):
+        """Aplica Umbralización."""
+        if self.matriz_actual is None: return
+        umbral = simpledialog.askinteger("Umbral", "Valor de umbral (0-255):", minvalue=0, maxvalue=255)
+        if umbral is None: return
+        try:
+            res = funciones.obtener_umbralizacion(self.matriz_actual, umbral)
+            AppProcesamiento(tk.Toplevel(self.root), res, f"{self.nombre_archivo}_umbral")
+        except Exception as e:
             messagebox.showerror("Error", str(e))
 
 

@@ -47,7 +47,7 @@ pip install -r requirements.txt
 ```
 
 > **Notas sobre la interfaz gráfica (GUI):**
-> - **En Windows:** Tkinter se incluye automáticamente con la instalación de Python. No requiere pasos adicionales.
+> - **En Windows:** Tkinter suele estar incluido con la instalación de Python, pero si al ejecutar python main.py recibes un error de ModuleNotFoundError: No module named '_tkinter', significa que Python fue instalado sin soporte para interfaces gráficas. Para solucionarlo, se debe ejecutar el instalador de Python nuevamente, seleccionar Modify y asegurarse de que la opción tcl/tk and IDLE esté marcada.
 > - **En Linux:** Si recibes un error de "tkinter not found", debes instalar el soporte de Tk para Python usando el gestor de paquetes de tu distribución. Ej. en Ubuntu/Debian:
 > ```bash
 >   sudo apt update && sudo apt install python3-tk

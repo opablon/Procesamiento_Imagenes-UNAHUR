@@ -47,8 +47,15 @@ class AppProcesamiento:
         ]
 
         # --- Barra de Estado ---
-        self.lbl_status = tk.Label(self.root, text="Listo", anchor=tk.W)
-        self.lbl_status.pack(side=tk.BOTTOM, fill=tk.X)
+        self.f_status = tk.Frame(self.root)
+        self.f_status.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        self.lbl_status = tk.Label(self.f_status, text="Listo", anchor=tk.W)
+        self.lbl_status.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        self.color_sample = tk.Frame(self.f_status, width=20, height=20, bg=self.f_status.cget("bg"), relief=tk.FLAT, borderwidth=0)
+        self.color_sample.pack_propagate(False)
+        self.color_sample.pack(side=tk.RIGHT, padx=5, pady=2)
         
         # --- Menú ---
         menu = tk.Menu(self.root)
@@ -143,6 +150,9 @@ class AppProcesamiento:
         self.selector.set_visible(modo == "selector")
         self.selector.set_active(modo == "selector")
         
+        if hasattr(self, 'color_sample') and modo != "ver_pixel":
+            self.color_sample.config(bg=self.f_status.cget("bg"), relief=tk.FLAT, borderwidth=0)
+            
         if modo:
             AppProcesamiento.set_estado_global("Herramienta activa. ESC para salir o finalizar.", "crosshair")
         else:
@@ -180,7 +190,15 @@ class AppProcesamiento:
         
         try:
             if self.modo_activo == "ver_pixel":
-                self.lbl_status.config(text=f"Coords: ({x},{y}) | Valor: {funciones.obtener_pixel(self.matriz_actual, x, y)}")
+                val = funciones.obtener_pixel(self.matriz_actual, x, y)
+                self.lbl_status.config(text=f"Coords: ({x},{y}) | Valor: {val}")
+                
+                if self.matriz_actual.ndim == 3:
+                    hex_color = f"#{int(val[0]):02x}{int(val[1]):02x}{int(val[2]):02x}"
+                else:
+                    hex_color = f"#{int(val):02x}{int(val):02x}{int(val):02x}"
+                    
+                self.color_sample.config(bg=hex_color, relief=tk.SUNKEN, borderwidth=1)
             
             elif self.modo_activo == "mod_pixel":
                 # Creamos un mensaje dinámico según los canales de la imagen

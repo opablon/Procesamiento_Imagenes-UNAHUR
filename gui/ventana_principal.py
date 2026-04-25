@@ -14,11 +14,11 @@ import functools
 def feedback_visual(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
-        AppProcesamiento.set_estado_global(True)
+        AppProcesamiento.set_estado_global("Procesando...", "watch")
         try:
             return func(self, *args, **kwargs)
         finally:
-            AppProcesamiento.set_estado_global(False)
+            AppProcesamiento.set_estado_global("Listo", "")
     return wrapper
 
 class AppProcesamiento:
@@ -142,6 +142,11 @@ class AppProcesamiento:
         self.modo_activo = modo
         self.selector.set_visible(modo == "selector")
         self.selector.set_active(modo == "selector")
+        
+        if modo:
+            AppProcesamiento.set_estado_global("Herramienta activa. ESC para salir o finalizar.", "crosshair")
+        else:
+            AppProcesamiento.set_estado_global("Listo", "")
 
     def _resetear(self):
         """Reinicia la selección y el modo activo reseteando el visor (Ej. Botón Escape)."""
@@ -244,6 +249,8 @@ class AppProcesamiento:
         if self in self.__class__.instancias:
             self.__class__.instancias.remove(self)
             
+        AppProcesamiento.set_estado_global("Listo", "")
+            
         if isinstance(self.root, tk.Tk):
             self.root.quit()
             self.root.destroy()
@@ -251,9 +258,7 @@ class AppProcesamiento:
             self.root.destroy()
 
     @classmethod
-    def set_estado_global(cls, ocupado):
-        cursor = "watch" if ocupado else ""
-        texto = "Procesando..." if ocupado else "Listo"
+    def set_estado_global(cls, texto, cursor):
         for inst in cls.instancias:
             inst.root.config(cursor=cursor)
             inst.lbl_status.config(text=texto)
@@ -278,7 +283,7 @@ class AppProcesamiento:
             # Gestión de estados: Habilita herramientas con imagen activa
             self._cambiar_estado_menus(tk.NORMAL)
                 
-            self.lbl_status.config(text=f"Imagen cargada: {self.nombre_archivo}")
+            AppProcesamiento.set_estado_global("Listo", "")
             
         except Exception as e: 
             messagebox.showerror("Error", f"No se pudo cargar la imagen: {str(e)}")

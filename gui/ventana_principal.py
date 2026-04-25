@@ -150,7 +150,7 @@ class AppProcesamiento:
         self.selector.set_visible(modo == "selector")
         self.selector.set_active(modo == "selector")
         
-        if hasattr(self, 'color_sample') and modo != "ver_pixel":
+        if hasattr(self, 'color_sample'):
             self.color_sample.config(bg=self.f_status.cget("bg"), relief=tk.FLAT, borderwidth=0)
             
         if modo:
@@ -387,6 +387,13 @@ class AppProcesamiento:
             coords = self._obtener_roi_validada()
             cant, prom = funciones.obtener_estadisticas_region(self.matriz_actual, *coords)
             self.lbl_status.config(text=f"Región: {cant}px | Promedio: {prom}")
+            
+            if self.matriz_actual.ndim == 3:
+                hex_color = f"#{int(prom[0]):02x}{int(prom[1]):02x}{int(prom[2]):02x}"
+            else:
+                hex_color = f"#{int(prom):02x}{int(prom):02x}{int(prom):02x}"
+                
+            self.color_sample.config(bg=hex_color, relief=tk.SUNKEN, borderwidth=1)
             
         except Exception as e: 
             messagebox.showerror("Error", str(e))

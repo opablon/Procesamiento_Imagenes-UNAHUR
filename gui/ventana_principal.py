@@ -1,12 +1,12 @@
+import sys
 import os
-import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog
-
 import numpy as np
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 from matplotlib.widgets import RectangleSelector
-
+import tkinter as tk
+from tkinter import filedialog, messagebox, simpledialog
 import core.funciones as funciones
 from gui import visualizaciones
 
@@ -18,7 +18,7 @@ class AppProcesamiento:
         self.matriz_actual = matriz
         self.modo_activo = None
         self.area_seleccionada = False
-        
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.root.geometry("800x600")
         self.root.minsize(800, 600)
         self.root.bind_all(
@@ -224,6 +224,12 @@ class AppProcesamiento:
         canvas = FigureCanvasTkAgg(fig, master=top)
         canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         canvas.draw()
+
+    def on_closing(self):
+        """Protocolo de cierre de seguridad."""
+        # plt.close('all') # Opcional aquí si ya está en iniciar_aplicacion
+        self.root.quit()
+        self.root.destroy()
 
     def cargar(self):
         """Carga en memoria una imagen y actualiza UI."""
@@ -481,4 +487,9 @@ def iniciar_aplicacion():
     """Punto de inicialización único de la aplicación GUI."""
     root = tk.Tk()
     AppProcesamiento(root)
-    root.mainloop()
+    try:
+        root.mainloop()
+    finally:
+        # Forzamos la limpieza al salir del bucle de eventos
+        plt.close('all') 
+        sys.exit(0)

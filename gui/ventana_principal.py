@@ -333,9 +333,17 @@ class AppProcesamiento:
             return
             
         try:
-            h, w = self.matriz_actual.shape[:2]
-            n = f"{os.path.splitext(self.nombre_archivo)[0] if self.nombre_archivo else 'img'}_{w}x{h}"
-            ruta = filedialog.asksaveasfilename(initialfile=n, filetypes=self.filtros)
+            # 1. Obtener las dimensiones de la matriz actual (alto, ancho)
+            alto, ancho = self.matriz_actual.shape[:2]
+            
+            # 2. Construir el nombre base utilizando 'self.nombre_archivo'
+            nombre_base = self.nombre_archivo if self.nombre_archivo else "imagen_procesada"
+            
+            # 3. Configurar el parámetro 'initialfile' con el formato: f"{nombre_base}_{ancho}x{alto}"
+            sugerencia = f"{nombre_base}_{ancho}x{alto}"
+            
+            # 4. Asegurarse de que la extensión sea compatible y vincular al parent correcto
+            ruta = filedialog.asksaveasfilename(initialfile=sugerencia, filetypes=self.filtros, parent=self.root)
             
             if ruta: 
                 funciones.guardar_imagen(self.matriz_actual, ruta)

@@ -5,7 +5,7 @@ import matplotlib.image as mpimg
 # --- VALIDACIONES Y UTILIDADES ---
 dimensiones_validas_imagen = [2, 3]
 
-def es_imagen_valida(matriz):
+def _es_imagen_valida(matriz):
     """Valida si la matriz no es None y tiene un formato soportado (2D o 3D)."""
     if matriz is None:
         return False
@@ -77,7 +77,7 @@ def guardar_imagen(matriz, ruta):
     Guarda la matriz en disco detectando el formato por la extensión.
     Para RAW guarda el binario directo; para otros usa matplotlib.
     """
-    if not es_imagen_valida(matriz):
+    if not _es_imagen_valida(matriz):
         raise ValueError("Matriz inválida para guardado.")
 
     ext = _obtener_extension(ruta)
@@ -97,7 +97,7 @@ def guardar_imagen(matriz, ruta):
 
 def obtener_pixel(matriz, x, y):
     """Retorna intensidad (int) o color (array [R,G,B])."""
-    if not es_imagen_valida(matriz):
+    if not _es_imagen_valida(matriz):
         raise ValueError("Imagen no soportada.")
     alto, ancho = matriz.shape[:2]
     if not (0 <= x < ancho and 0 <= y < alto):
@@ -106,7 +106,7 @@ def obtener_pixel(matriz, x, y):
 
 def modificar_pixel(matriz, x, y, nuevo_valor):
     """Retorna una copia de la matriz con el valor del píxel modificado."""
-    if not es_imagen_valida(matriz):
+    if not _es_imagen_valida(matriz):
         raise ValueError("Imagen no soportada.")
     alto, ancho = matriz.shape[:2]
     if not (0 <= x < ancho and 0 <= y < alto):
@@ -118,7 +118,7 @@ def modificar_pixel(matriz, x, y, nuevo_valor):
 
 def copiar_region(matriz, x1, y1, x2, y2):
     """Extrae una sub-matriz validando límites."""
-    if not es_imagen_valida(matriz):
+    if not _es_imagen_valida(matriz):
         raise ValueError("Imagen no soportada.")
     alto, ancho = matriz.shape[:2]
 
@@ -137,7 +137,7 @@ def copiar_region(matriz, x1, y1, x2, y2):
 
 def restar_imagenes(img1, img2):
     """Realiza la resta img1 - img2. Soporta Gris-Gris, RGB-RGB y Mixtos."""
-    if not (es_imagen_valida(img1) and es_imagen_valida(img2)):
+    if not (_es_imagen_valida(img1) and _es_imagen_valida(img2)):
         raise ValueError("Formatos de imagen no soportados.")
     if img1.shape[:2] != img2.shape[:2]:
         raise ValueError("Las resoluciones deben ser idénticas para la resta.")
@@ -203,7 +203,7 @@ def aplicar_transformacion_potencia(matriz_original, gamma):
     Gamma < 1: Aclara la imagen (realce de sombras).
     Gamma > 1: Oscurece la imagen (realce de altas luces).
     """
-    if not es_imagen_valida(matriz_original):
+    if not _es_imagen_valida(matriz_original):
         raise ValueError("Imagen no soportada.")
 
     if not (0 < gamma < 2):
@@ -229,7 +229,7 @@ def obtener_negativo(matriz_original):
     """
     Obtiene el negativo de la imagen.
     """
-    if not es_imagen_valida(matriz_original):
+    if not _es_imagen_valida(matriz_original):
         raise ValueError("Imagen no soportada.")
 
     return 255 - matriz_original.astype(np.uint8)
@@ -241,7 +241,7 @@ def obtener_histograma_gris(matriz_original):
     Calcula el histograma normalizado (frecuencias relativas).
     Retorna un arreglo de 256 elementos.
     """
-    if not es_imagen_valida(matriz_original):
+    if not _es_imagen_valida(matriz_original):
         raise ValueError("Imagen no soportada.")
 
     # Inicialización del arreglo de frecuencias para 256 niveles
@@ -270,7 +270,7 @@ def obtener_umbralizacion(matriz_original, umbral):
     """
     Aplica umbralización binaria a la imagen.
     """
-    if not es_imagen_valida(matriz_original):
+    if not _es_imagen_valida(matriz_original):
         raise ValueError("Imagen no soportada.")
 
     # Validación de dominio para el umbral
@@ -311,7 +311,7 @@ def ecualizar_histograma(matriz_original):
     Aplica la ecualización global basada en la probabilidad de ocurrencia de los niveles de gris.
     s_k = T(r_k) = (L-1) * sum_{j=0}^{k} p_r(r_j)
     """
-    if not es_imagen_valida(matriz_original):
+    if not _es_imagen_valida(matriz_original):
         raise ValueError("Imagen no soportada.")
 
     histograma = obtener_histograma_gris(matriz_original)

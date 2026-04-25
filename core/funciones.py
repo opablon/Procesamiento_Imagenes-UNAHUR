@@ -252,9 +252,10 @@ def obtener_histograma_gris(matriz_original):
         for x in range(ancho):
             if matriz_original.ndim == 3:
                 # Promedio manual para convertir a gris
-                suma = 0
+                suma = 0.0
                 for canal in range(3):
-                    suma += matriz_original[y, x, canal]
+                    # Convertimos explícitamente a float para evitar el overflow del uint8
+                    suma += float(matriz_original[y, x, canal])
                 valor = int(suma / 3)
             else:
                 valor = int(matriz_original[y, x])

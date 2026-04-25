@@ -68,17 +68,17 @@ class AppProcesamiento:
         
         # Submenú Ruidos
         self.menu_ruidos = tk.Menu(self.menu_tp1, tearoff=0)
-        self.menu_ruidos.add_command(label="Contaminar Gaussiano", command=self.ruido_gaussiano, state=tk.DISABLED)
-        self.menu_ruidos.add_command(label="Contaminar Exponencial", command=self.ruido_exponencial, state=tk.DISABLED)
-        self.menu_ruidos.add_command(label="Contaminar Sal y Pimienta", command=self.ruido_sal_pimienta, state=tk.DISABLED)
+        self.menu_ruidos.add_command(label="Gaussiano", command=self.ruido_gaussiano, state=tk.DISABLED)
+        self.menu_ruidos.add_command(label="Exponencial", command=self.ruido_exponencial, state=tk.DISABLED)
+        self.menu_ruidos.add_command(label="Sal y Pimienta", command=self.ruido_sal_pimienta, state=tk.DISABLED)
         self.menu_tp1.add_cascade(label="Ruidos", menu=self.menu_ruidos, state=tk.DISABLED)
         
         # Submenú Filtros
         self.menu_filtros = tk.Menu(self.menu_tp1, tearoff=0)
-        self.menu_filtros.add_command(label="Filtro Media", command=self.filtro_media, state=tk.DISABLED)
-        self.menu_filtros.add_command(label="Filtro Mediana", command=self.filtro_mediana, state=tk.DISABLED)
+        self.menu_filtros.add_command(label="Media", command=self.filtro_media, state=tk.DISABLED)
+        self.menu_filtros.add_command(label="Mediana", command=self.filtro_mediana, state=tk.DISABLED)
         self.menu_filtros.add_command(label="Mediana Ponderada", command=self.filtro_mediana_ponderada, state=tk.DISABLED)
-        self.menu_filtros.add_command(label="Filtro Gaussiano", command=self.filtro_gaussiano, state=tk.DISABLED)
+        self.menu_filtros.add_command(label="Gaussiano", command=self.filtro_gaussiano, state=tk.DISABLED)
         self.menu_filtros.add_command(label="Realce de Bordes", command=self.filtro_bordes, state=tk.DISABLED)
         self.menu_tp1.add_cascade(label="Filtros", menu=self.menu_filtros, state=tk.DISABLED)
 
@@ -115,11 +115,11 @@ class AppProcesamiento:
         for op in opciones_tp1:
             self.menu_tp1.entryconfig(op, state=estado)
         
-        opciones_ruidos = ["Contaminar Gaussiano", "Contaminar Exponencial", "Contaminar Sal y Pimienta"]
+        opciones_ruidos = ["Gaussiano", "Exponencial", "Sal y Pimienta"]
         for op in opciones_ruidos:
             self.menu_ruidos.entryconfig(op, state=estado)
             
-        opciones_filtros = ["Filtro Media", "Filtro Mediana", "Mediana Ponderada", "Filtro Gaussiano", "Realce de Bordes"]
+        opciones_filtros = ["Media", "Mediana", "Mediana Ponderada", "Gaussiano", "Realce de Bordes"]
         for op in opciones_filtros:
             self.menu_filtros.entryconfig(op, state=estado)
 
@@ -227,9 +227,11 @@ class AppProcesamiento:
 
     def on_closing(self):
         """Protocolo de cierre de seguridad."""
-        # plt.close('all') # Opcional aquí si ya está en iniciar_aplicacion
-        self.root.quit()
-        self.root.destroy()
+        if isinstance(self.root, tk.Tk):
+            self.root.quit()
+            self.root.destroy()
+        else:
+            self.root.destroy()
 
     def cargar(self):
         """Carga en memoria una imagen y actualiza UI."""

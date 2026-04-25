@@ -161,7 +161,7 @@ class AppProcesamiento:
         
         try:
             if self.modo_activo == "ver_pixel":
-                self.lbl_status.config(text=f"Px ({x},{y}): {funciones.obtener_pixel(self.matriz_actual, x, y)}")
+                self.lbl_status.config(text=f"Coords: ({x},{y}) | Valor: {funciones.obtener_pixel(self.matriz_actual, x, y)}")
             
             elif self.modo_activo == "mod_pixel":
                 # Creamos un mensaje dinámico según los canales de la imagen

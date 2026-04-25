@@ -289,9 +289,9 @@ def obtener_umbralizacion(matriz_original, umbral):
             # Obtener valor de gris (x,y)
             if matriz_original.ndim == 3:
                 # Promedio de los 3 canales (R+G+B)/3
-                suma_canales = 0
+                suma_canales = 0.0
                 for canal in range(3):
-                    suma_canales += matriz_original[y, x, canal]
+                    suma_canales += float(matriz_original[y, x, canal])
                 valor_gris = suma_canales / 3
             else:
                 valor_gris = matriz_original[y, x]

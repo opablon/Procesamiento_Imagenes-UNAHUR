@@ -437,9 +437,12 @@ class AppProcesamiento:
         if self.matriz_actual is None: 
             return
         try:
+            nombre = self.nombre_archivo if self.nombre_archivo else "Sin título"
+            titulo_full = f"Histograma - {nombre}"
+            
             histograma = funciones.obtener_histograma_gris(self.matriz_actual)
-            fig = visualizaciones.preparar_histograma(histograma)
-            self._mostrar_ventana_grafico(fig, "Histograma")
+            fig = visualizaciones.preparar_histograma(histograma, titulo=titulo_full)
+            self._mostrar_ventana_grafico(fig, titulo_full)
         except Exception as e:
             messagebox.showerror("Error", str(e))
 

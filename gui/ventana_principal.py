@@ -277,10 +277,14 @@ class AppProcesamiento:
 
     @classmethod
     def set_estado_global(cls, texto, cursor):
-        for inst in cls.instancias:
-            inst.root.config(cursor=cursor)
-            inst.lbl_status.config(text=texto)
-            inst.root.update()
+        AppProcesamiento.instancias = [i for i in AppProcesamiento.instancias if i.root.winfo_exists()]
+        for inst in AppProcesamiento.instancias:
+            try:
+                inst.root.config(cursor=cursor)
+                inst.lbl_status.config(text=texto)
+                inst.root.update_idletasks()
+            except (tk.TclError, RuntimeError):
+                continue
 
     def cargar(self):
         """Carga en memoria una imagen y actualiza UI."""

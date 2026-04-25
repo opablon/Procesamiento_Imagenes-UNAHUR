@@ -9,9 +9,23 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
 import core.funciones as funciones
 from gui import visualizaciones
+import functools
+
+def feedback_visual(func):
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        AppProcesamiento.set_estado_global(True)
+        try:
+            return func(self, *args, **kwargs)
+        finally:
+            AppProcesamiento.set_estado_global(False)
+    return wrapper
 
 class AppProcesamiento:
+    instancias = []
+
     def __init__(self, root, matriz=None, titulo=None):
+        AppProcesamiento.instancias.append(self)
         self.root = root
         self.nombre_archivo = titulo
         self.root.title(f"Visualizador - {titulo}" if titulo else "Visualizador")
@@ -227,11 +241,23 @@ class AppProcesamiento:
 
     def on_closing(self):
         """Protocolo de cierre de seguridad."""
+        if self in self.__class__.instancias:
+            self.__class__.instancias.remove(self)
+            
         if isinstance(self.root, tk.Tk):
             self.root.quit()
             self.root.destroy()
         else:
             self.root.destroy()
+
+    @classmethod
+    def set_estado_global(cls, ocupado):
+        cursor = "watch" if ocupado else ""
+        texto = "Procesando..." if ocupado else "Listo"
+        for inst in cls.instancias:
+            inst.root.config(cursor=cursor)
+            inst.lbl_status.config(text=texto)
+            inst.root.update()
 
     def cargar(self):
         """Carga en memoria una imagen y actualiza UI."""
@@ -290,6 +316,7 @@ class AppProcesamiento:
         except Exception as e: 
             messagebox.showerror("Error", str(e))
 
+    @feedback_visual
     def restar(self):
         """Operación de resta usando un nuevo flujo recursivo de Tkinter."""
         if self.matriz_actual is None: 
@@ -361,6 +388,7 @@ class AppProcesamiento:
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
+    @feedback_visual
     def ecualizacion(self):
         """Aplica ecualización global de histograma."""
         if self.matriz_actual is None: return
@@ -418,6 +446,7 @@ class AppProcesamiento:
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
+    @feedback_visual
     def filtro_media(self):
         """Aplica Filtro de la Media."""
         if self.matriz_actual is None: return
@@ -429,6 +458,7 @@ class AppProcesamiento:
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
+    @feedback_visual
     def filtro_mediana(self):
         """Aplica Filtro de la Mediana."""
         if self.matriz_actual is None: return
@@ -440,6 +470,7 @@ class AppProcesamiento:
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
+    @feedback_visual
     def filtro_mediana_ponderada(self):
         """Aplica Filtro de la Mediana Ponderada."""
         if self.matriz_actual is None: return
@@ -451,6 +482,7 @@ class AppProcesamiento:
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
+    @feedback_visual
     def filtro_gaussiano(self):
         """Aplica Filtro Gaussiano."""
         if self.matriz_actual is None: return
@@ -462,6 +494,7 @@ class AppProcesamiento:
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
+    @feedback_visual
     def filtro_bordes(self):
         """Aplica Filtro Realce de Bordes."""
         if self.matriz_actual is None: return
@@ -473,6 +506,7 @@ class AppProcesamiento:
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
+    @feedback_visual
     def umbralizacion(self):
         """Aplica Umbralización."""
         if self.matriz_actual is None: return

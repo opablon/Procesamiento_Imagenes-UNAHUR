@@ -9,14 +9,24 @@ def preparar_histograma(histograma, titulo="Histograma de Niveles de Gris"):
     Crea una figura con el histograma para ser incrustada en la GUI.
     Recibe el array del histograma (calculado en funciones.py).
     """
+    # Usaremos fondo oscuro para que haga juego con CustomTkinter dark mode
     fig = plt.figure(figsize=(6, 4))
-    ax = fig.add_subplot(111)
+    fig.patch.set_facecolor('#2b2b2b') # CTk dark bg
     
-    ax.bar(range(256), histograma, color='gray', width=1.0)
+    ax = fig.add_subplot(111)
+    ax.set_facecolor('#2b2b2b')
+    ax.tick_params(colors='white')
+    for spine in ax.spines.values():
+        spine.set_color('white')
+    ax.xaxis.label.set_color('white')
+    ax.yaxis.label.set_color('white')
+    ax.title.set_color('white')
+    
+    ax.bar(range(256), histograma, color='#1f6aa5', width=1.0) # CTk blue
     ax.set_title(titulo)
     ax.set_xlabel("Nivel de gris")
     ax.set_ylabel("Frecuencia relativa")
-    ax.grid(alpha=0.3)
+    ax.grid(alpha=0.2, color='white')
     
     fig.tight_layout()
     return fig
@@ -25,8 +35,9 @@ class VisorMatplotlib:
     """Encapsula la configuración y lógica de dibujo de Matplotlib."""
     def __init__(self, master_widget, callbacks):
         self.fig = Figure(figsize=(5, 4), dpi=100)
-        self.fig.patch.set_facecolor('#f0f0f0')
+        self.fig.patch.set_facecolor('#2b2b2b') # CTk dark background
         self.ax = self.fig.add_subplot(111)
+        self.ax.set_facecolor('#2b2b2b')
         self.ax.axis('off')
         
         self.canvas_mpl = FigureCanvasTkAgg(self.fig, master=master_widget)
@@ -36,12 +47,14 @@ class VisorMatplotlib:
             self.ax, callbacks.get('al_seleccionar'), 
             useblit=True, button=[1], interactive=True
         )
+        self.selector.set_visible(False)
+        self.selector.set_active(False)
         self.fig.canvas.mpl_connect('button_press_event', callbacks.get('al_click'))
         
     def dibujar(self, matriz):
         self.ax.clear()
         h, w = matriz.shape[:2]
-        self.ax.set_facecolor('#f0f0f0')
+        self.ax.set_facecolor('#2b2b2b')
         self.ax.imshow(matriz, cmap='gray' if matriz.ndim == 2 else None, vmin=0, vmax=255)
         self.ax.set_xlim(-20, w + 20)
         self.ax.set_ylim(h + 20, -20)
@@ -51,6 +64,7 @@ class VisorMatplotlib:
         
     def limpiar(self):
         self.ax.clear()
+        self.ax.set_facecolor('#2b2b2b')
         self.ax.axis('off')
         self.ax.set_xlim(0, 1)
         self.ax.set_ylim(0, 1)
@@ -59,6 +73,7 @@ class VisorMatplotlib:
     def set_modo_selector(self, activo):
         self.selector.set_visible(activo)
         self.selector.set_active(activo)
+        self.canvas_mpl.draw()
         
     def resetear_selector(self):
         self.selector.extents = (0, 0, 0, 0)

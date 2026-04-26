@@ -8,7 +8,7 @@ El proyecto está diseñado con una arquitectura modular, separando estrictament
 El proyecto se desarrolla bajo un enfoque académico, implementando la lógica de procesamiento de matrices desde cero para comprender los fundamentos matemáticos. **No se utilizan librerías de alto nivel para procesamiento (como OpenCV o PIL/Pillow)**.
 
 * **Cálculo y Procesamiento de Matrices:** NumPy
-* **Interfaz Gráfica (GUI):** Tkinter nativo
+* **Interfaz Gráfica (GUI):** CustomTkinter (interfaz moderna, hereda de Tkinter)
 * **Renderizado y Visor:** Matplotlib (FigureCanvasTkAgg y RectangleSelector)
 * **Lenguaje:** Python 3
 

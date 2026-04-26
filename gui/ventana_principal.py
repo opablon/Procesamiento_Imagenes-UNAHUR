@@ -4,7 +4,37 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog
+import customtkinter as ctk
+from tkinter import filedialog, messagebox
+
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
+
+def pedir_entero(titulo, mensaje, minvalue=None, maxvalue=None):
+    dialog = ctk.CTkInputDialog(text=mensaje, title=titulo)
+    val = dialog.get_input()
+    if not val: return None
+    try:
+        i = int(val)
+        if minvalue is not None and i < minvalue: return None
+        if maxvalue is not None and i > maxvalue: return None
+        return i
+    except ValueError: return None
+
+def pedir_float(titulo, mensaje, minvalue=None, maxvalue=None):
+    dialog = ctk.CTkInputDialog(text=mensaje, title=titulo)
+    val = dialog.get_input()
+    if not val: return None
+    try:
+        f = float(val)
+        if minvalue is not None and f < minvalue: return None
+        if maxvalue is not None and f > maxvalue: return None
+        return f
+    except ValueError: return None
+
+def pedir_string(titulo, mensaje):
+    dialog = ctk.CTkInputDialog(text=mensaje, title=titulo)
+    return dialog.get_input()
 
 import core.funciones as funciones
 from gui.visualizaciones import preparar_histograma, VisorMatplotlib
@@ -48,24 +78,24 @@ class AppProcesamiento:
         ]
 
         # --- Barra de Estado ---
-        self.f_status = tk.Frame(self.root)
+        self.f_status = ctk.CTkFrame(self.root, height=30, corner_radius=0)
         self.f_status.pack(side=tk.BOTTOM, fill=tk.X)
         
-        self.lbl_status = tk.Label(self.f_status, text="Listo", anchor=tk.W)
-        self.lbl_status.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.lbl_status = ctk.CTkLabel(self.f_status, text="Listo", anchor=tk.W)
+        self.lbl_status.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10)
         
-        self.color_sample = tk.Frame(self.f_status, width=20, height=20, bg=self.f_status.cget("bg"), relief=tk.FLAT, borderwidth=0)
+        self.color_sample = ctk.CTkFrame(self.f_status, width=20, height=20, fg_color="transparent")
         self.color_sample.pack_propagate(False)
         self.color_sample.pack(side=tk.RIGHT, padx=5, pady=2)
         
-        # --- Menú ---
-        menu_principal = tk.Menu(self.root)
-        self.root.config(menu=menu_principal)
-        self.gestor_menus = GestorMenus(menu_principal, self)
+        # --- Menú (Header) ---
+        self.f_header = ctk.CTkFrame(self.root, height=40, corner_radius=0)
+        self.f_header.pack(side=tk.TOP, fill=tk.X)
+        self.gestor_menus = GestorMenus(self.f_header, self)
 
         # --- Visor (Matplotlib integrado en Tkinter) ---
-        f_visor = tk.Frame(self.root)
-        f_visor.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        f_visor = ctk.CTkFrame(self.root)
+        f_visor.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         self.visor = VisorMatplotlib(f_visor, {
             'al_seleccionar': self._al_seleccionar,
@@ -84,7 +114,7 @@ class AppProcesamiento:
         self.visor.set_modo_selector(modo == "selector")
         
         if hasattr(self, 'color_sample'):
-            self.color_sample.config(bg=self.f_status.cget("bg"), relief=tk.FLAT, borderwidth=0)
+            self.color_sample.configure(fg_color="transparent")
             
         if modo:
             AppProcesamiento.set_estado_global("Herramienta activa. ESC para salir o finalizar.", "crosshair")
@@ -117,18 +147,18 @@ class AppProcesamiento:
         try:
             if self.modo_activo == "ver_pixel":
                 val = funciones.obtener_pixel(self.matriz_actual, x, y)
-                self.lbl_status.config(text=f"Coords: ({x},{y}) | Valor: {val}")
+                self.lbl_status.configure(text=f"Coords: ({x},{y}) | Valor: {val}")
                 
                 if self.matriz_actual.ndim == 3:
                     hex_color = f"#{int(val[0]):02x}{int(val[1]):02x}{int(val[2]):02x}"
                 else:
                     hex_color = f"#{int(val):02x}{int(val):02x}{int(val):02x}"
                     
-                self.color_sample.config(bg=hex_color, relief=tk.SUNKEN, borderwidth=1)
+                self.color_sample.configure(fg_color=hex_color)
             
             elif self.modo_activo == "mod_pixel":
                 msg = "Valor RGB (ej: 255,0,0):" if self.matriz_actual.ndim == 3 else "Valor Gris (0-255):"
-                nv = simpledialog.askstring("Modificar", f"Px ({x},{y})\n{msg}")
+                nv = pedir_string("Modificar", f"Px ({x},{y})\n{msg}")
                 if nv:
                     val = np.fromstring(nv, sep=',', dtype=np.uint8) if self.matriz_actual.ndim == 3 else int(nv)
                     self.matriz_actual = funciones.modificar_pixel(self.matriz_actual, x, y, val)
@@ -145,8 +175,8 @@ class AppProcesamiento:
     def _pedir_raw(self, ruta):
         if not ruta.upper().endswith(".RAW"): 
             return None
-        w = simpledialog.askinteger("RAW", "Ancho:", minvalue=1)
-        h = simpledialog.askinteger("RAW", "Alto:", minvalue=1) if w else None
+        w = pedir_entero("RAW", "Ancho:", minvalue=1)
+        h = pedir_entero("RAW", "Alto:", minvalue=1) if w else None
         return (w, h) if h else False
     
     def _obtener_roi_validada(self):
@@ -160,7 +190,7 @@ class AppProcesamiento:
 
     def _mostrar_ventana_grafico(self, fig, titulo):
         """Abre un Toplevel simple y muestra una figura de Matplotlib."""
-        top = tk.Toplevel(self.root)
+        top = ctk.CTkToplevel(self.root)
         top.title(titulo)
         canvas = FigureCanvasTkAgg(fig, master=top)
         canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
@@ -173,7 +203,7 @@ class AppProcesamiento:
             
         AppProcesamiento.set_estado_global("Listo", "")
             
-        if isinstance(self.root, tk.Tk):
+        if isinstance(self.root, ctk.CTk):
             self.root.quit()
             self.root.destroy()
         else:
@@ -185,7 +215,7 @@ class AppProcesamiento:
         for inst in AppProcesamiento.instancias:
             try:
                 inst.root.config(cursor=cursor)
-                inst.lbl_status.config(text=texto)
+                inst.lbl_status.configure(text=texto)
                 inst.root.update_idletasks()
             except (tk.TclError, RuntimeError):
                 continue
@@ -213,7 +243,7 @@ class AppProcesamiento:
         self.nombre_archivo = None
         self.root.title("Visualizador")
         self.visor.limpiar()
-        self.lbl_status.config(text="Imagen cerrada")
+        self.lbl_status.configure(text="Imagen cerrada")
         self.gestor_menus.cambiar_estado(tk.DISABLED)
         self._resetear()
 
@@ -237,7 +267,7 @@ class AppProcesamiento:
         if self.matriz_actual is None: return
         try:
             res = funcion_core(self.matriz_actual, *args)
-            AppProcesamiento(tk.Toplevel(self.root), res, f"{self.nombre_archivo}_{sufijo}")
+            AppProcesamiento(ctk.CTkToplevel(self.root), res, f"{self.nombre_archivo}_{sufijo}")
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
@@ -253,7 +283,7 @@ class AppProcesamiento:
             if dim is False: return
             m2 = funciones.cargar_imagen(ruta2, *dim) if dim else funciones.cargar_imagen(ruta2)
             res = funciones.restar_imagenes(self.matriz_actual, m2)
-            AppProcesamiento(tk.Toplevel(self.root), res, f"{self.nombre_archivo}_resta")
+            AppProcesamiento(ctk.CTkToplevel(self.root), res, f"{self.nombre_archivo}_resta")
         except Exception as e: 
             messagebox.showerror("Error", str(e))
 
@@ -262,7 +292,7 @@ class AppProcesamiento:
         try:
             coords = self._obtener_roi_validada()
             res = funciones.copiar_region(self.matriz_actual, *coords)
-            AppProcesamiento(tk.Toplevel(self.root), res, f"{self.nombre_archivo}_copia")
+            AppProcesamiento(ctk.CTkToplevel(self.root), res, f"{self.nombre_archivo}_copia")
         except Exception as e: 
             messagebox.showerror("Error", str(e))
 
@@ -271,21 +301,21 @@ class AppProcesamiento:
         try:
             coords = self._obtener_roi_validada()
             cant, prom = funciones.obtener_estadisticas_region(self.matriz_actual, *coords)
-            self.lbl_status.config(text=f"Región: {cant}px | Promedio: {prom}")
+            self.lbl_status.configure(text=f"Región: {cant}px | Promedio: {prom}")
             
             if self.matriz_actual.ndim == 3:
                 hex_color = f"#{int(prom[0]):02x}{int(prom[1]):02x}{int(prom[2]):02x}"
             else:
                 hex_color = f"#{int(prom):02x}{int(prom):02x}{int(prom):02x}"
                 
-            self.color_sample.config(bg=hex_color, relief=tk.SUNKEN, borderwidth=1)
+            self.color_sample.configure(fg_color=hex_color)
         except Exception as e: 
             messagebox.showerror("Error", str(e))
 
     # --- Comandos TP1 ---
     
     def transformacion_potencia(self):
-        gamma = simpledialog.askfloat("Gamma", "Ingrese valor de Gamma (0 < gamma < 2):", minvalue=0.01, maxvalue=1.99)
+        gamma = pedir_float("Gamma", "Ingrese valor de Gamma (0 < gamma < 2):", minvalue=0.01, maxvalue=1.99)
         if gamma is not None:
             self._ejecutar_operacion_core(funciones.aplicar_transformacion_potencia, f"potencia_{gamma}", gamma)
 
@@ -296,51 +326,51 @@ class AppProcesamiento:
         self._ejecutar_operacion_core(funciones.ecualizar_histograma, "ecualizado")
 
     def umbralizacion(self):
-        umbral = simpledialog.askinteger("Umbral", "Valor de umbral (0-255):", minvalue=0, maxvalue=255)
+        umbral = pedir_entero("Umbral", "Valor de umbral (0-255):", minvalue=0, maxvalue=255)
         if umbral is not None:
             self._ejecutar_operacion_core(funciones.obtener_umbralizacion, "umbral", umbral)
 
     def ruido_gaussiano(self):
-        densidad = simpledialog.askfloat("Densidad", "Densidad de ruido (0-100):", minvalue=0, maxvalue=100)
+        densidad = pedir_float("Densidad", "Densidad de ruido (0-100):", minvalue=0, maxvalue=100)
         if densidad is None: return
-        sigma = simpledialog.askfloat("Sigma", "Desvío estándar (sigma):", minvalue=0)
+        sigma = pedir_float("Sigma", "Desvío estándar (sigma):", minvalue=0)
         if sigma is not None:
             self._ejecutar_operacion_core(funciones.aplicar_ruido_aditivo_gaussiano, "r_gauss", densidad, sigma)
 
     def ruido_exponencial(self):
-        porcentaje = simpledialog.askfloat("Porcentaje", "Porcentaje de ruido (0-100):", minvalue=0, maxvalue=100)
+        porcentaje = pedir_float("Porcentaje", "Porcentaje de ruido (0-100):", minvalue=0, maxvalue=100)
         if porcentaje is None: return
-        lambd = simpledialog.askfloat("Lambda", "Parámetro lambda (>0):", minvalue=0.0001)
+        lambd = pedir_float("Lambda", "Parámetro lambda (>0):", minvalue=0.0001)
         if lambd is not None:
             self._ejecutar_operacion_core(funciones.aplicar_ruido_multiplicativo_exponencial, "r_exp", porcentaje, lambd)
 
     def ruido_sal_pimienta(self):
-        densidad = simpledialog.askfloat("Densidad", "Densidad de ruido (0-100):", minvalue=0, maxvalue=100)
+        densidad = pedir_float("Densidad", "Densidad de ruido (0-100):", minvalue=0, maxvalue=100)
         if densidad is not None:
             self._ejecutar_operacion_core(funciones.aplicar_ruido_sal_y_pimienta, "r_sp", densidad)
 
     def filtro_media(self):
-        tamano = simpledialog.askinteger("Tamaño", "Tamaño de la máscara (impar):", minvalue=3)
+        tamano = pedir_entero("Tamaño", "Tamaño de la máscara (impar):", minvalue=3)
         if tamano is not None:
             self._ejecutar_operacion_core(funciones.aplicar_filtro_media, "f_media", tamano)
 
     def filtro_mediana(self):
-        tamano = simpledialog.askinteger("Tamaño", "Tamaño de la máscara (impar):", minvalue=3)
+        tamano = pedir_entero("Tamaño", "Tamaño de la máscara (impar):", minvalue=3)
         if tamano is not None:
             self._ejecutar_operacion_core(funciones.aplicar_filtro_mediana, "f_mediana", tamano)
 
     def filtro_mediana_ponderada(self):
-        tamano = simpledialog.askinteger("Tamaño", "Tamaño de la máscara (impar):", minvalue=3)
+        tamano = pedir_entero("Tamaño", "Tamaño de la máscara (impar):", minvalue=3)
         if tamano is not None:
             self._ejecutar_operacion_core(funciones.aplicar_filtro_mediana_ponderada, "f_med_pond", tamano)
 
     def filtro_gaussiano(self):
-        sigma = simpledialog.askfloat("Sigma", "Desvío estándar (sigma > 0):", minvalue=0.01)
+        sigma = pedir_float("Sigma", "Desvío estándar (sigma > 0):", minvalue=0.01)
         if sigma is not None:
             self._ejecutar_operacion_core(funciones.aplicar_filtro_gaussiano, "f_gauss", sigma)
 
     def filtro_bordes(self):
-        tamano = simpledialog.askinteger("Tamaño", "Tamaño de la máscara (impar):", minvalue=3)
+        tamano = pedir_entero("Tamaño", "Tamaño de la máscara (impar):", minvalue=3)
         if tamano is not None:
             self._ejecutar_operacion_core(funciones.aplicar_filtro_realce_de_bordes, "f_bordes", tamano)
 
@@ -357,7 +387,7 @@ class AppProcesamiento:
 
 def iniciar_aplicacion():
     """Punto de inicialización único de la aplicación GUI."""
-    root = tk.Tk()
+    root = ctk.CTk()
     AppProcesamiento(root)
     try:
         root.mainloop()

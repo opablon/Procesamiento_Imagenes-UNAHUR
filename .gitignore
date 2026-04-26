@@ -44,6 +44,10 @@ desktop.ini
 /*.tif
 /*.TIF
 
+# UI y cache
+.customtkinter_cache
+.DS_Store
+
 # Exceptuar los assets del proyecto
 !/assets/**
 

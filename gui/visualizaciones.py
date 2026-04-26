@@ -71,8 +71,16 @@ class VisorMatplotlib:
         self.canvas_mpl.draw()
         
     def set_modo_selector(self, activo):
-        self.selector.set_visible(activo)
         self.selector.set_active(activo)
+        if activo:
+            # Solo mostrar si ya hay una selección válida previa
+            x1, x2, y1, y2 = self.selector.extents
+            if abs(x2 - x1) > 0.1 or abs(y2 - y1) > 0.1:
+                self.selector.set_visible(True)
+            else:
+                self.selector.set_visible(False)
+        else:
+            self.selector.set_visible(False)
         self.canvas_mpl.draw()
         
     def resetear_selector(self):

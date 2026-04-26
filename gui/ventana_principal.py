@@ -196,28 +196,40 @@ class AppProcesamiento:
         canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         canvas.draw()
 
+    def _limpiar_nombre(self, sufijo):
+        """Genera un nombre descriptivo manteniendo la extensión original al final."""
+        if not self.nombre_archivo:
+            return f"procesada_{sufijo}"
+        base, ext = os.path.splitext(self.nombre_archivo)
+        return f"{base}_{sufijo}{ext}"
+
     def on_closing(self):
         """Protocolo de cierre de seguridad."""
-        if self in self.__class__.instancias:
-            self.__class__.instancias.remove(self)
+        if self in AppProcesamiento.instancias:
+            AppProcesamiento.instancias.remove(self)
             
-        AppProcesamiento.set_estado_global("Listo", "")
+        try:
+            AppProcesamiento.set_estado_global("Listo", "")
+        except:
+            pass
             
-        if isinstance(self.root, ctk.CTk):
-            self.root.quit()
-            self.root.destroy()
-        else:
-            self.root.destroy()
+        try:
+            if isinstance(self.root, ctk.CTk):
+                self.root.quit()
+            else:
+                self.root.destroy()
+        except:
+            pass
 
     @classmethod
     def set_estado_global(cls, texto, cursor):
         AppProcesamiento.instancias = [i for i in AppProcesamiento.instancias if i.root.winfo_exists()]
         for inst in AppProcesamiento.instancias:
             try:
-                inst.root.config(cursor=cursor)
-                inst.lbl_status.configure(text=texto)
-                inst.root.update_idletasks()
-            except (tk.TclError, RuntimeError):
+                if inst.root.winfo_exists():
+                    inst.root.configure(cursor=cursor)
+                    inst.lbl_status.configure(text=texto)
+            except:
                 continue
 
     # --- Operaciones Globales y Archivos ---
@@ -251,8 +263,12 @@ class AppProcesamiento:
         if self.matriz_actual is None: return
         try:
             alto, ancho = self.matriz_actual.shape[:2]
-            nombre_base = self.nombre_archivo if self.nombre_archivo else "imagen_procesada"
-            sugerencia = f"{nombre_base}_{ancho}x{alto}"
+            if self.nombre_archivo:
+                base, ext = os.path.splitext(self.nombre_archivo)
+                sugerencia = f"{base}_{ancho}x{alto}{ext}"
+            else:
+                sugerencia = f"imagen_procesada_{ancho}x{alto}"
+
             ruta = filedialog.asksaveasfilename(initialfile=sugerencia, filetypes=self.filtros, parent=self.root)
             if ruta: 
                 funciones.guardar_imagen(self.matriz_actual, ruta)
@@ -267,7 +283,7 @@ class AppProcesamiento:
         if self.matriz_actual is None: return
         try:
             res = funcion_core(self.matriz_actual, *args)
-            AppProcesamiento(ctk.CTkToplevel(self.root), res, f"{self.nombre_archivo}_{sufijo}")
+            AppProcesamiento(ctk.CTkToplevel(self.root), res, self._limpiar_nombre(sufijo))
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
@@ -283,7 +299,7 @@ class AppProcesamiento:
             if dim is False: return
             m2 = funciones.cargar_imagen(ruta2, *dim) if dim else funciones.cargar_imagen(ruta2)
             res = funciones.restar_imagenes(self.matriz_actual, m2)
-            AppProcesamiento(ctk.CTkToplevel(self.root), res, f"{self.nombre_archivo}_resta")
+            AppProcesamiento(ctk.CTkToplevel(self.root), res, self._limpiar_nombre("resta"))
         except Exception as e: 
             messagebox.showerror("Error", str(e))
 
@@ -292,7 +308,7 @@ class AppProcesamiento:
         try:
             coords = self._obtener_roi_validada()
             res = funciones.copiar_region(self.matriz_actual, *coords)
-            AppProcesamiento(ctk.CTkToplevel(self.root), res, f"{self.nombre_archivo}_copia")
+            AppProcesamiento(ctk.CTkToplevel(self.root), res, self._limpiar_nombre("copia"))
         except Exception as e: 
             messagebox.showerror("Error", str(e))
 
@@ -391,6 +407,11 @@ def iniciar_aplicacion():
     AppProcesamiento(root)
     try:
         root.mainloop()
+    except:
+        pass
     finally:
-        plt.close('all') 
-        sys.exit(0)
+        try:
+            plt.close('all')
+            root.destroy()
+        except:
+            pass

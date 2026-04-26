@@ -319,12 +319,23 @@ def ecualizar_histograma(matriz_original):
     histograma = obtener_histograma_gris(matriz_original)
     alto, ancho = matriz_original.shape[:2]
 
-    # Cálculo de la probabilidad acumulada
-    fda = np.zeros(256, dtype=float)
+    # Cálculo de la probabilidad acumulada (s_k)
+    probabilidad_acumulada = np.zeros(256, dtype=float)
     acumulado = 0.0
     for i in range(256):
         acumulado += histograma[i]
-        fda[i] = acumulado
+        probabilidad_acumulada[i] = acumulado
+
+    # Identificación de s_min (primer valor estrictamente mayor a cero)
+    probabilidad_minima = 0.0
+    for prob in probabilidad_acumulada:
+        if prob > 0:
+            probabilidad_minima = prob
+            break
+
+    # Evitar división por cero si la imagen es de un único color
+    if probabilidad_minima >= 1.0:
+        return matriz_original.copy()
 
     resultado = np.zeros_like(matriz_original)
 
@@ -333,11 +344,26 @@ def ecualizar_histograma(matriz_original):
         for x in range(ancho):
             if matriz_original.ndim == 3:
                 for canal in range(3):
-                    nuevo_valor = int(fda[matriz_original[y, x, canal]] * 255)
-                    resultado[y, x, canal] = max(0, min(255, nuevo_valor))
+                    # Nivel de gris actual de entrada
+                    gris_entrada = matriz_original[y, x, canal]
+                    
+                    # Aplicación de la fórmula discretizada con s_k y s_min
+                    valor_transformado = 255 * ((probabilidad_acumulada[gris_entrada] - probabilidad_minima) / (1.0 - probabilidad_minima))
+                    
+                    # Parte entera para obtener s_pico
+                    gris_salida = int(valor_transformado)
+                    resultado[y, x, canal] = max(0, min(255, gris_salida))
             else:
-                nuevo_valor = int(fda[matriz_original[y, x]] * 255)
-                resultado[y, x] = max(0, min(255, nuevo_valor))
+                # Nivel de gris actual de entrada
+                gris_entrada = matriz_original[y, x]
+                
+                # Aplicación de la fórmula discretizada con s_k y s_min
+                valor_transformado = 255 * ((probabilidad_acumulada[gris_entrada] - probabilidad_minima) / (1.0 - probabilidad_minima))
+                
+                # Parte entera para obtener s_pico
+                gris_salida = int(valor_transformado)
+                resultado[y, x] = max(0, min(255, gris_salida))
+                
     return resultado
 
 # --- GENERADORES ALEATORIOS ---

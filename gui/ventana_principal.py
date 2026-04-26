@@ -45,6 +45,14 @@ def feedback_visual(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
         AppProcesamiento.set_estado_global("Procesando...", "watch")
+        # Forzamos actualización de la UI para que se vea el cursor antes del procesamiento pesado
+        try:
+            for inst in AppProcesamiento.instancias:
+                if inst.root.winfo_exists():
+                    inst.root.update_idletasks()
+        except:
+            pass
+
         try:
             return func(self, *args, **kwargs)
         finally:

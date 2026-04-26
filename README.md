@@ -69,5 +69,10 @@ python main.py
 * **ROI (Región de Interés):** Herramienta de selección interactiva, extracción de recortes y cálculo de estadísticas regionales (cantidad de píxeles y promedio de intensidad).
 * **Aritmética:** Resta de imágenes (Gris, RGB y Mixtas) con implementación de Linear Scaling para la correcta visualización de diferencias negativas.
 
-### [ ] TP1: (Próximamente...)
+### [x] TP1: Operadores Puntuales y Filtros Espaciales
+* **Operadores Puntuales:** Transformación de potencia (Gamma), Negativo de imagen y Umbralización binaria.
+* **Análisis Estadístico:** Cálculo matemático de histogramas (frecuencias absolutas) y Ecualización global de histograma mediante función de distribución acumulada (FDA).
+* **Generación de Ruidos:** Implementación de ruido Gaussiano (aditivo), Exponencial (multiplicativo) y Sal y Pimienta, controlados por parámetros de densidad y probabilidad.
+* **Filtros Espaciales (Convolución Manual):** Implementación de ventana deslizante para filtros de la Media, Mediana, Mediana Ponderada, Gaussiano y Realce de Bordes. La convolución se realiza de forma manual para cumplir con los objetivos pedagógicos de la asignatura.
+* **Actualización de Interfaz:** La GUI fue escalada para soportar arquitectura multiventana simultánea, permitiendo la comparación directa entre la imagen original, la imagen con ruido y la imagen filtrada, junto con sus respectivos histogramas dinámicos.
 

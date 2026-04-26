@@ -46,3 +46,6 @@ desktop.ini
 
 # Exceptuar los assets del proyecto
 !/assets/**
+
+# Ignorar PDFs de consignas en assets
+assets/*.pdf

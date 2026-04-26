@@ -239,7 +239,7 @@ def obtener_negativo(matriz_original):
 def obtener_histograma_gris(matriz_original):
     """
     Calcula el histograma normalizado (frecuencias relativas).
-    Retorna un arreglo de 256 elementos.
+    Retorna un arreglo de 256 elementos con valores float en el rango [0, 1].
     """
     if not _es_imagen_valida(matriz_original):
         raise ValueError("Imagen no soportada.")
@@ -262,7 +262,9 @@ def obtener_histograma_gris(matriz_original):
 
             # Incremento de la frecuencia del nivel detectado
             histograma[valor] += 1
-    return histograma
+            
+    total_pixeles = alto * ancho
+    return histograma / total_pixeles
 
 # --- UMBRALIZACIÓN ---
 
@@ -316,14 +318,13 @@ def ecualizar_histograma(matriz_original):
 
     histograma = obtener_histograma_gris(matriz_original)
     alto, ancho = matriz_original.shape[:2]
-    total_pixeles = alto * ancho
 
     # Cálculo de la probabilidad acumulada
     fda = np.zeros(256, dtype=float)
-    acumulado = 0
+    acumulado = 0.0
     for i in range(256):
         acumulado += histograma[i]
-        fda[i] = acumulado / total_pixeles
+        fda[i] = acumulado
 
     resultado = np.zeros_like(matriz_original)
 

@@ -9,13 +9,10 @@ def preparar_histograma(histograma, titulo="Histograma de Niveles de Gris"):
     Crea una figura con el histograma para ser incrustada en la GUI.
     Recibe el array del histograma (calculado en funciones.py).
     """
-    # Convertimos la frecuencia absoluta a relativa para el gráfico
-    frecuencia_relativa = histograma / sum(histograma)
-    
     fig = plt.figure(figsize=(6, 4))
     ax = fig.add_subplot(111)
     
-    ax.bar(range(256), frecuencia_relativa, color='gray', width=1.0)
+    ax.bar(range(256), histograma, color='gray', width=1.0)
     ax.set_title(titulo)
     ax.set_xlabel("Nivel de gris")
     ax.set_ylabel("Frecuencia relativa")

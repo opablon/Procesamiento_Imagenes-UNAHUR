@@ -297,7 +297,6 @@ class AppProcesamiento:
 
     # --- Comandos TP0 ---
 
-    @feedback_visual
     def restar(self):
         if self.matriz_actual is None: return
         ruta2 = filedialog.askopenfilename(filetypes=self.filtros)
@@ -306,8 +305,7 @@ class AppProcesamiento:
             dim = self._pedir_raw(ruta2)
             if dim is False: return
             m2 = funciones.cargar_imagen(ruta2, *dim) if dim else funciones.cargar_imagen(ruta2)
-            res = funciones.restar_imagenes(self.matriz_actual, m2)
-            AppProcesamiento(ctk.CTkToplevel(self.root), res, self._limpiar_nombre("resta"))
+            self._ejecutar_operacion_core(funciones.restar_imagenes, "resta", m2)
         except Exception as e: 
             messagebox.showerror("Error", str(e))
 
@@ -315,11 +313,11 @@ class AppProcesamiento:
         if self.matriz_actual is None: return
         try:
             coords = self._obtener_roi_validada()
-            res = funciones.copiar_region(self.matriz_actual, *coords)
-            AppProcesamiento(ctk.CTkToplevel(self.root), res, self._limpiar_nombre("copia"))
+            self._ejecutar_operacion_core(funciones.copiar_region, "copia", *coords)
         except Exception as e: 
             messagebox.showerror("Error", str(e))
 
+    @feedback_visual
     def promedio(self):
         if self.matriz_actual is None: return
         try:
@@ -398,6 +396,7 @@ class AppProcesamiento:
         if tamano is not None:
             self._ejecutar_operacion_core(funciones.aplicar_filtro_realce_de_bordes, "f_bordes", tamano)
 
+    @feedback_visual
     def mostrar_histograma(self):
         if self.matriz_actual is None: return
         try:

@@ -666,7 +666,7 @@ def aplicar_filtro_gaussiano(matriz_original, sigma):
     alto, ancho = matriz_original.shape[:2]
 
     # Trabajamos en float32 para el cálculo
-    resultado = np.zeros(matriz_original.shape, dtype=np.float32)
+    resultado = matriz_original.astype(np.float32)
     matriz_float = matriz_original.astype(np.float32)
 
     # Navegación por la imagen (Ventana deslizante)
@@ -736,7 +736,7 @@ def aplicar_filtro_realce_de_bordes(matriz_original, tamano_mascara):
     alto, ancho = matriz_original.shape[:2]
 
     # Matriz de salida en float para precisión en la suma de productos
-    resultado = np.zeros_like(matriz_original, dtype=np.float32)
+    resultado = matriz_original.astype(np.float32)
     matriz_float = matriz_original.astype(np.float32)
 
     # Navegación manual por la imagen (Ventana deslizante)

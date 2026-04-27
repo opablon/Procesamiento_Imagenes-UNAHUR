@@ -4,6 +4,15 @@ Este repositorio contiene el desarrollo progresivo de una aplicación de escrito
 
 El proyecto está diseñado con una arquitectura modular, separando estrictamente la lógica de negocio (funciones matemáticas) de la interfaz gráfica, y evoluciona integrando nuevos algoritmos en cada entrega académica.
 
+---
+
+## 📦 Descargas (Ejecutables)
+Si no deseas configurar un entorno de desarrollo de Python, puedes descargar la última versión estable directamente desde la sección de **[Releases](https://github.com/opablon/Procesamiento_Imagenes-UNAHUR/releases)**.
+* **Windows:** Descarga el archivo `.exe`.
+* **Linux:** Descarga el binario ejecutable (requiere permisos de ejecución: `chmod +x`).
+
+---
+
 ## 🛠️ Stack Tecnológico y Arquitectura
 El proyecto se desarrolla bajo un enfoque académico, implementando la lógica de procesamiento de matrices desde cero para comprender los fundamentos matemáticos. **No se utilizan librerías de alto nivel para procesamiento (como OpenCV o PIL/Pillow)**.
 
@@ -11,6 +20,15 @@ El proyecto se desarrolla bajo un enfoque académico, implementando la lógica d
 * **Interfaz Gráfica (GUI):** CustomTkinter (interfaz moderna, hereda de Tkinter)
 * **Renderizado y Visor:** Matplotlib (FigureCanvasTkAgg y RectangleSelector)
 * **Lenguaje:** Python 3
+
+## 📂 Estructura del Repositorio
+* `core/`: Contiene `funciones.py` con la lógica matemática pura. Es el motor de procesamiento.
+* `gui/`: Contiene la definición de ventanas, menús y componentes visuales.
+* `assets/`: Recursos estáticos e imágenes de prueba.
+* `main.py`: Punto de entrada principal de la aplicación.
+* `.github/workflows/`: Automatización de compilación y despliegue (CI/CD).
+
+---
 
 ---
 
@@ -61,6 +79,16 @@ python main.py
 
 ---
 
+---
+
+## 🎓 Reglas de Desarrollo Académico
+Para cumplir con los objetivos pedagógicos de la UNAHUR, este software se rige por las siguientes restricciones:
+1. **No-OpenCV:** Está prohibido el uso de librerías de visión artificial (OpenCV, PIL, Scikit-Image) para el procesamiento.
+2. **Implementación desde Cero:** Los algoritmos (convolución, ecualización, histogramas, etc.) se implementan mediante bucles explícitos y manipulación directa de matrices de NumPy.
+3. **Separación de Capas:** La lógica matemática en `core/` no debe tener ninguna dependencia de la interfaz gráfica (`tkinter` o `matplotlib`).
+
+---
+
 ## ⚙️ Índice de Progreso y Funcionalidades
 
 ### [x] TP0: Operaciones Básicas e Interfaz
@@ -75,4 +103,12 @@ python main.py
 * **Generación de Ruidos:** Implementación de ruido Gaussiano (aditivo), Exponencial (multiplicativo) y Sal y Pimienta, controlados por parámetros de densidad y probabilidad.
 * **Filtros Espaciales (Convolución Manual):** Implementación de ventana deslizante para filtros de la Media, Mediana, Mediana Ponderada, Gaussiano y Realce de Bordes. La convolución se realiza de forma manual para cumplir con los objetivos pedagógicos de la asignatura.
 * **Actualización de Interfaz:** La GUI fue escalada para soportar arquitectura multiventana simultánea, permitiendo la comparación directa entre la imagen original, la imagen con ruido y la imagen filtrada, junto con sus respectivos histogramas dinámicos.
+
+---
+
+## 🤖 Integración Continua (CI/CD)
+Este proyecto utiliza **GitHub Actions** para garantizar la integridad y facilitar el despliegue:
+- **Automatización de Build:** Al subir una etiqueta de versión (`v*`), el flujo de trabajo compila automáticamente los ejecutables para Windows y Linux usando PyInstaller.
+- **Gestión de Releases:** Los artefactos compilados se adjuntan automáticamente a una nueva versión en la pestaña de Releases.
+
 

@@ -19,7 +19,8 @@ El proyecto se desarrolla bajo un enfoque académico, implementando la lógica d
 * **Cálculo y Procesamiento de Matrices:** NumPy
 * **Interfaz Gráfica (GUI):** CustomTkinter (interfaz moderna, hereda de Tkinter)
 * **Renderizado y Visor:** Matplotlib (FigureCanvasTkAgg y RectangleSelector)
-* **Lenguaje:** Python 3
+* **Análisis Estático y Tipado:** Ruff (Linter/Formateador) y Pyrefly (Type Checker)
+* **Lenguaje:** Python 3 (Tipado Estricto)
 
 ## 📂 Estructura del Repositorio
 * `core/`: Contiene `funciones.py` con la lógica matemática pura. Es el motor de procesamiento.
@@ -59,9 +60,14 @@ python -m venv venv
 ```
 
 ### 3. Instalar dependencias
-Con el entorno activo, instala las librerías necesarias:
+Con el entorno activo, instala las librerías necesarias para ejecutar la aplicación:
 ```bash
 pip install -r requirements.txt
+```
+
+Si vas a contribuir al desarrollo o realizar modificaciones en el código, instala también las dependencias de desarrollo (Ruff, Pyrefly, etc.):
+```bash
+pip install -r requirements-dev.txt
 ```
 
 > **Notas sobre la interfaz gráfica (GUI):**
@@ -108,7 +114,8 @@ Para cumplir con los objetivos pedagógicos de la UNAHUR, este software se rige 
 
 ## 🤖 Integración Continua (CI/CD)
 Este proyecto utiliza **GitHub Actions** para garantizar la integridad y facilitar el despliegue:
-- **Automatización de Build:** Al subir una etiqueta de versión (`v*`), el flujo de trabajo compila automáticamente los ejecutables para Windows y Linux usando PyInstaller.
-- **Gestión de Releases:** Los artefactos compilados se adjuntan automáticamente a una nueva versión en la pestaña de Releases.
+- **Validación Estricta:** Antes de compilar, el flujo ejecuta `ruff check` y `pyrefly check` para asegurar que el código no contenga *code smells* y cumpla con todo el tipado estático (Type Hints). Si hay errores, la automatización se bloquea.
+- **Automatización de Build:** Al subir una etiqueta de versión (`v*`) y pasar los chequeos, el flujo de trabajo compila automáticamente los ejecutables para Windows y Linux usando PyInstaller.
+- **Gestión de Releases:** Los artefactos compilados se adjuntan automáticamente a una nueva versión en la pestaña de Releases de GitHub.
 
 

@@ -264,7 +264,9 @@ def obtener_negativo(matriz_original):
 def obtener_histograma_gris(matriz_original):
     """
     Calcula el histograma normalizado (frecuencias relativas).
-    Retorna un arreglo de 256 elementos con valores float en el rango [0, 1].
+    Retorna un arreglo de 256 elementos donde cada componente h_i se define como:
+    h_i = n_i / (N * M)
+    donde n_i es la cantidad de píxeles con nivel de gris 'i', y (N*M) es el total de píxeles.
     """
     if not _es_imagen_valida(matriz_original):
         raise ValueError("Imagen no soportada.")
@@ -273,29 +275,35 @@ def obtener_histograma_gris(matriz_original):
     histograma = np.zeros(256, dtype=int)
     alto, ancho = matriz_original.shape[:2]
 
+    # Recorrido manual para el conteo de frecuencias absolutas
     for y in range(alto):
         for x in range(ancho):
             if matriz_original.ndim == 3:
-                # Promedio manual para convertir a gris
+                # Conversión manual a niveles de gris (promedio de bandas R, G y B)
                 suma = 0.0
                 for canal in range(3):
-                    # Convertimos explícitamente a float para evitar el overflow del uint8
+                    # Uso de float para evitar el overflow del tipo uint8 en la suma
                     suma += float(matriz_original[y, x, canal])
                 valor = int(suma / 3)
             else:
                 valor = int(matriz_original[y, x])
 
-            # Incremento de la frecuencia del nivel detectado
+            # Incremento de n_i: cantidad de ocurrencias del nivel de gris detectado
             histograma[valor] += 1
-            
+
     total_pixeles = alto * ancho
+
+    # Retorno del histograma normalizado h_i = n_i / total_pixeles
     return histograma / total_pixeles
 
 # --- UMBRALIZACIÓN ---
 
 def obtener_umbralizacion(matriz_original, umbral):
     """
-    Aplica umbralización binaria a la imagen.
+    Aplica una transformación puntual de umbralización binaria a la imagen.
+    La imagen de salida es binaria (blanco y negro) basándose en la función a trozos:
+    T(r) = 255 si r >= u
+    T(r) = 0   si r < u
     """
     if not _es_imagen_valida(matriz_original):
         raise ValueError("Imagen no soportada.")
@@ -318,6 +326,8 @@ def obtener_umbralizacion(matriz_original, umbral):
                 # Promedio de los 3 canales (R+G+B)/3
                 suma_canales = 0.0
                 for canal in range(3):
+
+                    # Convertimos explícitamente a float para evitar el overflow del uint8
                     suma_canales += float(matriz_original[y, x, canal])
                 valor_gris = suma_canales / 3
             else:
@@ -335,7 +345,8 @@ def obtener_umbralizacion(matriz_original, umbral):
 
 def ecualizar_histograma(matriz_original):
     """
-    Aplica la ecualización global basada en la probabilidad de ocurrencia de los niveles de gris.
+    Aplica la ecualización global basada en la frecuencia relativa de los niveles de gris.
+    Implementa la fórmula de discretización teórica utilizando s_min para maximizar el rango dinámico:
     s_k = T(r_k) = (L-1) * sum_{j=0}^{k} p_r(r_j)
     """
     if not _es_imagen_valida(matriz_original):
@@ -344,7 +355,7 @@ def ecualizar_histograma(matriz_original):
     histograma = obtener_histograma_gris(matriz_original)
     alto, ancho = matriz_original.shape[:2]
 
-    # Cálculo de la probabilidad acumulada (s_k)
+    # Cálculo de la probabilidad acumulada (FDA / s_k)
     probabilidad_acumulada = np.zeros(256, dtype=float)
     acumulado = 0.0
     for i in range(256):
@@ -369,26 +380,26 @@ def ecualizar_histograma(matriz_original):
         for x in range(ancho):
             if matriz_original.ndim == 3:
                 for canal in range(3):
-                    # Nivel de gris actual de entrada
+                    # Nivel de gris actual de entrada (r_k)
                     gris_entrada = matriz_original[y, x, canal]
-                    
-                    # Aplicación de la fórmula discretizada con s_k y s_min
+
+                    # Aplicación de la fórmula con s_k y s_min
                     valor_transformado = 255 * ((probabilidad_acumulada[gris_entrada] - probabilidad_minima) / (1.0 - probabilidad_minima))
-                    
-                    # Parte entera para obtener s_pico
+
+                    # Parte entera para obtener s_pico (valor discretizado)
                     gris_salida = int(valor_transformado)
                     resultado[y, x, canal] = max(0, min(255, gris_salida))
             else:
-                # Nivel de gris actual de entrada
+                # Nivel de gris actual de entrada (r_k)
                 gris_entrada = matriz_original[y, x]
-                
-                # Aplicación de la fórmula discretizada con s_k y s_min
+
+                # Aplicación de la fórmula con s_k y s_min
                 valor_transformado = 255 * ((probabilidad_acumulada[gris_entrada] - probabilidad_minima) / (1.0 - probabilidad_minima))
-                
-                # Parte entera para obtener s_pico
+
+                # Parte entera para obtener s_pico (valor discretizado)
                 gris_salida = int(valor_transformado)
                 resultado[y, x] = max(0, min(255, gris_salida))
-                
+
     return resultado
 
 # --- GENERADORES ALEATORIOS ---
@@ -420,20 +431,22 @@ def generar_exponencial(lambd, forma):
 
 def aplicar_ruido_aditivo_gaussiano(matriz_original, densidad, sigma):
     """
-    Contamina la imagen sumando ruido con distribución N(0, sigma) al conjunto D.
-    Ic(i,j) = I(i,j) + ruido  si (i,j) pertenece al conjunto de píxeles D.
+    Contamina una fracción de la imagen sumando ruido con distribución Normal N(μ, σ).
+    Sigue el modelo aditivo: Ic(i,j) = I(i,j) + η(i,j) para (i,j) ∈ D,
+    donde η es el ruido gaussiano y D es el conjunto de píxeles contaminados.
     """
     if sigma < 0:
         raise ValueError(f"El desvío (sigma={sigma}) debe ser mayor o igual a 0.")
     if not (0 <= densidad <= 100):
         raise ValueError("La densidad d debe estar entre 0 y 100.")
 
+    # Conversión a float64 para permitir valores fuera del rango [0, 255] durante la suma
     matriz_float = matriz_original.astype(np.float64)
 
-    # Definir el porcentaje de contaminación
+    # Probabilidad p de que un píxel pertenezca al conjunto D (porcentaje de contaminación)
     probabilidad = densidad / 100.0
 
-    # Máscara booleana que define aleatoriamente qué píxeles serán contaminados
+    # Generación del conjunto D (máscara booleana) mediante muestreo aleatorio
     mascara = np.random.choice([True, False], size=matriz_original.shape[:2], p=[probabilidad, 1 - probabilidad])
 
     # Generar ruido gaussiano solo para la forma de la imagen
@@ -454,31 +467,36 @@ def aplicar_ruido_aditivo_gaussiano(matriz_original, densidad, sigma):
 
 def aplicar_ruido_multiplicativo_exponencial(matriz_original, porcentaje, lambd):
     """
-    Multiplica un porcentaje de los píxeles por ruido Exponencial.
+    Contamina una fracción de la imagen mediante ruido exponencial multiplicativo.
+    Sigue el modelo: Ic(i,j) = I(i,j) * η(i,j) para (i,j) ∈ D,
+    donde η es una variable aleatoria con distribución exponencial de parámetro λ.
     """
     if lambd <= 0:
         raise ValueError("El parámetro lambda debe ser mayor a 0.")
     if not (0 <= porcentaje <= 100):
         raise ValueError("El porcentaje debe estar entre 0 y 100.")
 
+    # Conversión a float64 para evitar errores de precisión y desbordamiento en la multiplicación
     res = matriz_original.astype(np.float64)
 
-    # Definir el porcentaje de contaminación d
+    # Definición de la probabilidad p de pertenencia al conjunto de píxeles D
     probabilidad = porcentaje / 100.0
 
-    # Elegir aleatoriamente d pixels para el conjunto D
+    # Generación de la máscara aleatoria para identificar el conjunto D
     mascara = np.random.choice([True, False], size=matriz_original.shape[:2], p=[probabilidad, 1 - probabilidad])
 
-    # Generar ruido exponencial solo para la forma de la imagen
+    # Generación de la componente de ruido η siguiendo una distribución exponencial
     ruido = generar_exponencial(lambd, matriz_original.shape[:2])
 
-    # Aplicar la multiplicación solo a los seleccionados
-    if matriz_original.ndim == 3:
+    # Aplicación del modelo multiplicativo solo a los píxeles seleccionados
+    if matriz_original.ndim == 3: # Caso imagen color (RGB)
         for i in range(3):
+            # Ic = I * η
             res[:,:,i][mascara] *= ruido[mascara]
-    else:
+    else: # Caso niveles de gris
         res[mascara] *= ruido[mascara]
 
+    # Truncamiento (Clipping) para asegurar que el resultado final pertenezca al rango [0, 255]
     return np.clip(res, 0, 255).astype(np.uint8)
 
 # --- RUIDO SAL Y PIMIENTA ---
@@ -546,7 +564,6 @@ def aplicar_filtro_media(matriz_original, tamano_mascara):
 
 def aplicar_filtro_mediana(matriz_original, tamano_mascara):
     """
-    Filtro de la Mediana.
     Consiste en ordenar los valores de la vecindad y tomar el del medio
     Efectivo para eliminar ruido Sal y Pimienta.
     """
@@ -557,12 +574,23 @@ def aplicar_filtro_mediana(matriz_original, tamano_mascara):
     offset = tamano_mascara // 2
     matriz_filtrada = matriz_original.copy()
 
+    # El índice central en un array ordenado de tamaño N*N
+    indice_central = (tamano_mascara * tamano_mascara) // 2
+
     for y in range(offset, alto - offset):
         for x in range(offset, ancho - offset):
-            vecindad = matriz_original[y-offset:y+offset+1, x-offset:x+offset+1]
-
-            # Ordenamos y tomamos el valor central
-            matriz_filtrada[y, x] = np.median(vecindad, axis=(0, 1))
+            
+            if matriz_original.ndim == 2:
+                # Caso Niveles de Gris: Extraer, aplanar, ordenar y tomar centro
+                vecindad = matriz_original[y-offset : y+offset+1, x-offset : x+offset+1]
+                lista_valores = sorted(vecindad.flatten().tolist())
+                matriz_filtrada[y, x] = lista_valores[indice_central]
+            else:
+                # Caso RGB: Procesar cada canal por separado
+                for canal in range(3):
+                    vecindad_canal = matriz_original[y-offset : y+offset+1, x-offset : x+offset+1, canal]
+                    lista_valores = sorted(vecindad_canal.flatten().tolist())
+                    matriz_filtrada[y, x, canal] = lista_valores[indice_central]
 
     return matriz_filtrada
 
@@ -570,28 +598,34 @@ def aplicar_filtro_mediana(matriz_original, tamano_mascara):
 
 def generar_pesos_mediana_ponderada(tamano_mascara):
     """
-    Genera una matriz de pesos enteros basada en una distribución gaussiana.
-    El peso máximo está en el centro y decae hacia los bordes.
+    Genera una matriz de pesos enteros basada en una aproximación discreta
+    de la campana de Gauss utilizando coeficientes binomiales.
     """
-    # Crear cuadrícula centrada
-    radio = tamano_mascara // 2
-    eje = np.linspace(-radio, radio, tamano_mascara)
-    x, y = np.meshgrid(eje, eje)
-
-    # Calcular importancia gaussiana
-    distancia_cuadrada = x**2 + y**2
-    sigma = tamano_mascara / 3
-    pesos = np.exp(-distancia_cuadrada / (2 * sigma**2))
-
-    # Escalar para obtener repeticiones enteras (mínimo 1)
-    return (pesos / pesos.min()).astype(int)
+    n = tamano_mascara - 1
+    kernel_1d = np.zeros(tamano_mascara, dtype=int)
+    
+    # Generar el vector 1D iterativamente
+    valor = 1
+    for i in range(tamano_mascara):
+        kernel_1d[i] = valor
+        # Fórmula iterativa para el siguiente coeficiente binomial
+        valor = valor * (n - i) // (i + 1)
+        
+    # Generar la matriz 2D manualmente
+    pesos = np.zeros((tamano_mascara, tamano_mascara), dtype=int)
+    for y in range(tamano_mascara):
+        for x in range(tamano_mascara):
+            pesos[y, x] = kernel_1d[y] * kernel_1d[x]
+            
+    return pesos
 
 # --- FILTRO DE LA MEDIANA PONDERADA ---
 
 def aplicar_filtro_mediana_ponderada(matriz_original, tamano_mascara):
     """
-    Filtro de la mediana ponderada.
-    Halla la mediana de los valores del entorno repetidos según una matriz de pesos dinámicos.
+    Aplica el filtro de la mediana ponderada (operador no lineal de orden).
+    A diferencia de la mediana simple, cada píxel de la vecindad se repite 
+    según un peso definido en una máscara, dándole mayor importancia al centro.
     """
     if tamano_mascara % 2 == 0:
         raise ValueError(f"El tamaño de la máscara debe ser impar.")
@@ -600,11 +634,13 @@ def aplicar_filtro_mediana_ponderada(matriz_original, tamano_mascara):
     offset = tamano_mascara // 2
     matriz_filtrada = matriz_original.copy()
 
-    # Generar la máscara de pesos basada en la importancia del píxel central
+    # Generación dinámica de la máscara de pesos (Aproximación Gaussiana/Binomial)
     mascara_pesos = generar_pesos_mediana_ponderada(tamano_mascara)
 
+    # Recorrido de la imagen evitando los bordes
     for y in range(offset, alto - offset):
         for x in range(offset, ancho - offset):
+            # Extracción de la vecindad actual centrada en (y, x)
             vecindad = matriz_original[y-offset:y+offset+1, x-offset:x+offset+1]
 
             if matriz_original.ndim == 2:
@@ -613,10 +649,17 @@ def aplicar_filtro_mediana_ponderada(matriz_original, tamano_mascara):
                 valores_expandidos = []
                 for i in range(tamano_mascara):
                     for j in range(tamano_mascara):
+                        
+                        # Expansión manual: se repite el valor del píxel según indica su peso
+                        peso = mascara_pesos[i, j]
+                        valor_pixel = vecindad[i, j]
+                        valores_expandidos.extend([valor_pixel] * peso)
+                
+                # Ordenamiento manual y selección del valor central (mediana ponderada)
+                valores_expandidos.sort()
+                indice_central = len(valores_expandidos) // 2
+                matriz_filtrada[y, x] = valores_expandidos[indice_central]
 
-                        # Repetir el pixel tantas veces como indique su peso
-                        valores_expandidos.extend([vecindad[i, j]] * mascara_pesos[i, j])
-                matriz_filtrada[y, x] = np.median(valores_expandidos)
             else:
 
                 # Caso RGB: Procesar cada canal por separado
@@ -624,8 +667,14 @@ def aplicar_filtro_mediana_ponderada(matriz_original, tamano_mascara):
                     valores_expandidos = []
                     for i in range(tamano_mascara):
                         for j in range(tamano_mascara):
-                            valores_expandidos.extend([vecindad[i, j, canal]] * mascara_pesos[i, j])
-                    matriz_filtrada[y, x, canal] = np.median(valores_expandidos)
+                            peso = mascara_pesos[i, j]
+                            valor_pixel = vecindad[i, j, canal]
+                            valores_expandidos.extend([valor_pixel] * peso)
+                    
+                    # Ordenamiento y selección de mediana por canal
+                    valores_expandidos.sort()
+                    indice_central = len(valores_expandidos) // 2
+                    matriz_filtrada[y, x, canal] = valores_expandidos[indice_central]
 
     return matriz_filtrada
 
@@ -681,7 +730,7 @@ def aplicar_filtro_gaussiano(matriz_original, sigma):
     # El tamaño de la máscara debe ser acorde al valor de σ
     # Se utiliza k = 2 * σ + 1
     tamano_mascara = int(2 * sigma + 1)
-    
+
     if tamano_mascara % 2 == 0:
         raise ValueError(f"El desvío (sigma={sigma}) debe generar una máscara de tamaño impar. Ingrese otro valor.")
 
@@ -697,7 +746,7 @@ def aplicar_filtro_gaussiano(matriz_original, sigma):
     # Navegación por la imagen (Ventana deslizante)
     for y in range(offset, alto - offset):
         for x in range(offset, ancho - offset):
-            
+
             if matriz_original.ndim == 3:  # Caso multicanal (RGB)
                 for canal in range(3):
                     acumulado = 0.0
@@ -713,9 +762,8 @@ def aplicar_filtro_gaussiano(matriz_original, sigma):
                     for mx in range(-offset, offset + 1):
                         acumulado += matriz_float[y + my, x + mx] * mascara[my + offset, mx + offset]
                 resultado[y, x] = acumulado
-    
-    # Retornamos el escalado
-    return _escalar_a_8bit(resultado)
+
+    return np.clip(resultado, 0, 255).astype(np.uint8)
 
 # --- GENERA LA MASCARA REALCE DE BORDES ---
 

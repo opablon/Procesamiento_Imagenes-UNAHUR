@@ -317,9 +317,13 @@ class AppProcesamiento:
         except Exception as e: 
             messagebox.showerror("Error", str(e))
 
-    @feedback_visual
     def promedio(self):
         if self.matriz_actual is None: return
+        
+        self.root.configure(cursor="watch")
+        self.lbl_status.configure(text="Calculando promedio...")
+        self.root.update_idletasks()
+        
         try:
             coords = self._obtener_roi_validada()
             cant, prom = funciones.obtener_estadisticas_region(self.matriz_actual, *coords)
@@ -333,6 +337,9 @@ class AppProcesamiento:
             self.color_sample.configure(fg_color=hex_color)
         except Exception as e: 
             messagebox.showerror("Error", str(e))
+            self.lbl_status.configure(text="Listo")
+        finally:
+            self.root.configure(cursor="")
 
     # --- Comandos TP1 ---
     

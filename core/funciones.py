@@ -174,7 +174,12 @@ def restar_imagenes(img1, img2):
 # --- ESTADÍSTICAS DE REGIÓN ---
 
 def obtener_estadisticas_region(matriz, x1, y1, x2, y2):
-    """ Calcula cantidad de píxeles y el promedio de gris o color de la región. """
+    """
+    Calcula estadísticas descriptivas de una Región de Interés (ROI).
+    Retorna la cantidad total de píxeles y el valor promedio (intensidad o color)
+    de la sub-matriz delimitada por los puntos (x1, y1) y (x2, y2).
+    """
+    # Se utiliza la función auxiliar para extraer la sub-matriz validando límites
     region = copiar_region(matriz, x1, y1, x2, y2)
 
     alto, ancho = region.shape[:2]
@@ -184,14 +189,34 @@ def obtener_estadisticas_region(matriz, x1, y1, x2, y2):
         return 0, 0
 
     if region.ndim == 2:
+        
         # Promedio simple para niveles de gris
-        promedio = np.uint8(np.mean(region))
+        suma_acumulada = 0.0
+        
+        for y in range(alto):
+            for x in range(ancho):
+                suma_acumulada += float(region[y, x])
+        
+        # El promedio es la suma de intensidades sobre el total de píxeles
+        promedio = np.uint8(suma_acumulada / total_pixeles)
+    
     else:
         # Promedio por componente para RGB
-        promedio_rgb = np.mean(region, axis=(0, 1))
-        promedio = promedio_rgb.astype(np.uint8)
+        promedio_rgb = np.zeros(3, dtype=np.uint8)
+
+        for canal in range(3):
+            suma_canal = 0.0
+            for y in range(alto):
+                for x in range(ancho):
+                    suma_canal += float(region[y, x, canal])
+            
+            # Cálculo del promedio independiente para cada banda R, G y B
+            promedio_rgb[canal] = np.uint8(suma_canal / total_pixeles)
+            
+        promedio = promedio_rgb
 
     return total_pixeles, promedio
+
 
 # --- INICIO TP 1 ---
 # --- AUMENTO DE CONTRASTE (POTENCIA / GAMMA) ---

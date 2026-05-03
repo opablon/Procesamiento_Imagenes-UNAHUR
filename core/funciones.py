@@ -246,7 +246,7 @@ def aplicar_transformacion_potencia(matriz_original, gamma):
     matriz_transformada = constante_c * (matriz_float ** gamma)
 
     # Retornamos el escalado
-    return _escalar_a_8bit(matriz_transformada)
+    return np.clip(matriz_transformada, 0, 255).astype(np.uint8)
 
 # --- NEGATIVO ---
 

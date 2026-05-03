@@ -1,21 +1,26 @@
 import os
-import numpy as np
+from typing import Any, Optional, Tuple
+
 import matplotlib.image as mpimg
+import numpy as np
 
 # --- VALIDACIONES Y UTILIDADES ---
 dimensiones_validas_imagen = [2, 3]
 
-def _es_imagen_valida(matriz):
+
+def _es_imagen_valida(matriz: Optional[np.ndarray]) -> bool:
     """Valida si la matriz no es None y tiene un formato soportado (2D o 3D)."""
     if matriz is None:
         return False
     return matriz.ndim in dimensiones_validas_imagen
 
-def _obtener_extension(ruta):
+
+def _obtener_extension(ruta: str) -> str:
     """Obtiene la extensión del archivo en formato .EXT (mayúsculas)."""
     return os.path.splitext(ruta)[1].upper()
 
-def _escalar_a_8bit(matriz):
+
+def _escalar_a_8bit(matriz: np.ndarray) -> np.ndarray:
     """
     Transformación lineal para remapear cualquier rango al intervalo [0, 255]
     y evitar pérdida de información.
@@ -32,10 +37,12 @@ def _escalar_a_8bit(matriz):
 
     return matriz_escalada.astype(np.uint8)
 
+
 # --- INICIO TP 0 ---
 # --- CARGA Y GUARDADO ---
 
-def _cargar_raw_8bit(ruta, ancho, alto):
+
+def _cargar_raw_8bit(ruta: str, ancho: int, alto: int) -> np.ndarray:
     """Procesa archivos RAW. Detecta Gris o RGB por peso de archivo."""
     datos = np.fromfile(ruta, dtype=np.uint8)
     tamanio_esperado = ancho * alto
@@ -49,12 +56,13 @@ def _cargar_raw_8bit(ruta, ancho, alto):
 
     if len(datos) >= tamanio_esperado * 3:
         # Caso RGB
-        return datos[:tamanio_esperado * 3].reshape((alto, ancho, 3))
+        return datos[: tamanio_esperado * 3].reshape((alto, ancho, 3))
     else:
         # Caso Gris
         return datos[:tamanio_esperado].reshape((alto, ancho))
 
-def _cargar_formato_con_cabecera(ruta):
+
+def _cargar_formato_con_cabecera(ruta: str) -> np.ndarray:
     """Carga formatos estándar (JPG, PNG, etc.) y normaliza a uint8 (0-255)."""
     matriz = mpimg.imread(ruta)
     # Si la imagen viene en punto flotante, la escalamos
@@ -62,17 +70,21 @@ def _cargar_formato_con_cabecera(ruta):
         matriz = (matriz * 255).astype(np.uint8)
     return matriz
 
-def cargar_imagen(ruta, ancho=None, alto=None):
+
+def cargar_imagen(ruta: str, ancho: Optional[int] = None, alto: Optional[int] = None) -> np.ndarray:
     """Punto de entrada único para cargar cualquier imagen soportada."""
     if not os.path.exists(ruta):
         raise FileNotFoundError(f"No se encontró el archivo: {ruta}")
 
     ext = _obtener_extension(ruta)
-    if ext == '.RAW':
+    if ext == ".RAW":
+        if ancho is None or alto is None:
+            raise ValueError("Ancho y alto requeridos para RAW")
         return _cargar_raw_8bit(ruta, ancho, alto)
     return _cargar_formato_con_cabecera(ruta)
 
-def guardar_imagen(matriz, ruta):
+
+def guardar_imagen(matriz: np.ndarray, ruta: str) -> None:
     """
     Guarda la matriz en disco detectando el formato por la extensión.
     Para RAW guarda el binario directo; para otros usa matplotlib.
@@ -82,20 +94,22 @@ def guardar_imagen(matriz, ruta):
 
     ext = _obtener_extension(ruta)
 
-    if ext == '.RAW':
-        # Clipping de seguridad antes de convertir a uint8 
+    if ext == ".RAW":
+        # Clipping de seguridad antes de convertir a uint8
         m_save = np.clip(matriz, 0, 255).astype(np.uint8)
         m_save.tofile(ruta)
     else:
         # matplotlib maneja el guardado de formatos estándar
         if matriz.ndim == 2:
-            mpimg.imsave(ruta, matriz, cmap='gray')
+            mpimg.imsave(ruta, matriz, cmap="gray")
         else:
             mpimg.imsave(ruta, matriz)
 
+
 # --- MANIPULACIÓN DE PÍXELES Y REGIONES ---
 
-def obtener_pixel(matriz, x, y):
+
+def obtener_pixel(matriz: np.ndarray, x: int, y: int) -> Any:
     """Retorna intensidad (int) o color (array [R,G,B])."""
     if not _es_imagen_valida(matriz):
         raise ValueError("Imagen no soportada.")
@@ -104,7 +118,8 @@ def obtener_pixel(matriz, x, y):
         raise IndexError(f"Coordenadas fuera de rango: {x},{y}")
     return matriz[y, x]
 
-def modificar_pixel(matriz, x, y, nuevo_valor):
+
+def modificar_pixel(matriz: np.ndarray, x: int, y: int, nuevo_valor: Any) -> np.ndarray:
     """Retorna una copia de la matriz con el valor del píxel modificado."""
     if not _es_imagen_valida(matriz):
         raise ValueError("Imagen no soportada.")
@@ -116,7 +131,8 @@ def modificar_pixel(matriz, x, y, nuevo_valor):
     nueva[y, x] = nuevo_valor
     return nueva
 
-def copiar_region(matriz, x1, y1, x2, y2):
+
+def copiar_region(matriz: np.ndarray, x1: int, y1: int, x2: int, y2: int) -> np.ndarray:
     """Extrae una sub-matriz validando límites."""
     if not _es_imagen_valida(matriz):
         raise ValueError("Imagen no soportada.")
@@ -124,18 +140,20 @@ def copiar_region(matriz, x1, y1, x2, y2):
 
     # Validación
     if not (0 <= x1 <= ancho and 0 <= y1 <= alto):
-      raise IndexError("Punto 1 fuera de límites.")
+        raise IndexError("Punto 1 fuera de límites.")
     if not (0 <= x2 <= ancho and 0 <= y2 <= alto):
-      raise IndexError("Punto 2 fuera de límites.")
+        raise IndexError("Punto 2 fuera de límites.")
 
     xmin, xmax = min(x1, x2), max(x1, x2)
     ymin, ymax = min(y1, y2), max(y1, y2)
 
     return matriz[ymin:ymax, xmin:xmax].copy()
 
+
 # --- OPERACIONES ARITMÉTICAS ---
 
-def restar_imagenes(img1, img2):
+
+def restar_imagenes(img1: np.ndarray, img2: np.ndarray) -> np.ndarray:
     """Realiza la resta img1 - img2. Soporta Gris-Gris, RGB-RGB y Mixtos."""
     if not (_es_imagen_valida(img1) and _es_imagen_valida(img2)):
         raise ValueError("Formatos de imagen no soportados.")
@@ -148,12 +166,12 @@ def restar_imagenes(img1, img2):
 
     if m1.ndim == m2.ndim:
         resultado = m1 - m2
-    elif m1.ndim == 2: # Gris - RGB
+    elif m1.ndim == 2:  # Gris - RGB
         r_r = m1 - m2[:, :, 0]
         r_g = m1 - m2[:, :, 1]
         r_b = m1 - m2[:, :, 2]
         resultado = (r_r + r_g + r_b) / 3
-    else: # RGB - Gris
+    else:  # RGB - Gris
         r_r = m1[:, :, 0] - m2
         r_g = m1[:, :, 1] - m2
         r_b = m1[:, :, 2] - m2
@@ -168,12 +186,14 @@ def restar_imagenes(img1, img2):
 
     # ESCALADO
     resultado = (resultado - min_val) * (255.0 / (max_val - min_val))
-    
+
     return resultado.astype(np.uint8)
+
 
 # --- ESTADÍSTICAS DE REGIÓN ---
 
-def obtener_estadisticas_region(matriz, x1, y1, x2, y2):
+
+def obtener_estadisticas_region(matriz: np.ndarray, x1: int, y1: int, x2: int, y2: int) -> Tuple[int, Any]:
     """
     Calcula estadísticas descriptivas de una Región de Interés (ROI).
     Retorna la cantidad total de píxeles y el valor promedio (intensidad o color)
@@ -189,17 +209,16 @@ def obtener_estadisticas_region(matriz, x1, y1, x2, y2):
         return 0, 0
 
     if region.ndim == 2:
-        
         # Promedio simple para niveles de gris
         suma_acumulada = 0.0
-        
+
         for y in range(alto):
             for x in range(ancho):
                 suma_acumulada += float(region[y, x])
-        
+
         # El promedio es la suma de intensidades sobre el total de píxeles
         promedio = np.uint8(suma_acumulada / total_pixeles)
-    
+
     else:
         # Promedio por componente para RGB
         promedio_rgb = np.zeros(3, dtype=np.uint8)
@@ -209,10 +228,10 @@ def obtener_estadisticas_region(matriz, x1, y1, x2, y2):
             for y in range(alto):
                 for x in range(ancho):
                     suma_canal += float(region[y, x, canal])
-            
+
             # Cálculo del promedio independiente para cada banda R, G y B
             promedio_rgb[canal] = np.uint8(suma_canal / total_pixeles)
-            
+
         promedio = promedio_rgb
 
     return total_pixeles, promedio
@@ -221,7 +240,8 @@ def obtener_estadisticas_region(matriz, x1, y1, x2, y2):
 # --- INICIO TP 1 ---
 # --- AUMENTO DE CONTRASTE (POTENCIA / GAMMA) ---
 
-def aplicar_transformacion_potencia(matriz_original, gamma):
+
+def aplicar_transformacion_potencia(matriz_original: np.ndarray, gamma: float) -> np.ndarray:
     """
     Realiza el realce de contraste mediante la función de potencia.
     s = c * r^gamma, donde 'r' es la intensidad original y 's' la transformada.
@@ -235,22 +255,24 @@ def aplicar_transformacion_potencia(matriz_original, gamma):
         raise ValueError("El valor de gamma debe estar en el rango (0, 2).")
 
     if gamma == 1:
-        return matriz_original.copy() # Evitamos cálculos innecesarios para la identidad
+        return matriz_original.copy()  # Evitamos cálculos innecesarios para la identidad
 
     # 'c' es la constante de normalización para asegurar que el rango dinámico sea [0, 255]
     # c = 255 / (255^gamma) => 255^(1-gamma)
-    constante_c = 255**(1 - gamma)
+    constante_c = 255 ** (1 - gamma)
 
     # Conversión a float32 para evitar errores de precisión durante la potencia
     matriz_float = matriz_original.astype(np.float32)
-    matriz_transformada = constante_c * (matriz_float ** gamma)
+    matriz_transformada = constante_c * (matriz_float**gamma)
 
     # Retornamos el escalado
     return np.clip(matriz_transformada, 0, 255).astype(np.uint8)
 
+
 # --- NEGATIVO ---
 
-def obtener_negativo(matriz_original):
+
+def obtener_negativo(matriz_original: np.ndarray) -> np.ndarray:
     """
     Obtiene el negativo de la imagen.
     """
@@ -259,9 +281,11 @@ def obtener_negativo(matriz_original):
 
     return 255 - matriz_original.astype(np.uint8)
 
+
 # --- HISTOGRAMA ---
 
-def obtener_histograma_gris(matriz_original):
+
+def obtener_histograma_gris(matriz_original: np.ndarray) -> np.ndarray:
     """
     Calcula el histograma normalizado (frecuencias relativas).
     Retorna un arreglo de 256 elementos donde cada componente h_i se define como:
@@ -296,9 +320,11 @@ def obtener_histograma_gris(matriz_original):
     # Retorno del histograma normalizado h_i = n_i / total_pixeles
     return histograma / total_pixeles
 
+
 # --- UMBRALIZACIÓN ---
 
-def obtener_umbralizacion(matriz_original, umbral):
+
+def obtener_umbralizacion(matriz_original: np.ndarray, umbral: int) -> np.ndarray:
     """
     Aplica una transformación puntual de umbralización binaria a la imagen.
     La imagen de salida es binaria (blanco y negro) basándose en la función a trozos:
@@ -320,13 +346,11 @@ def obtener_umbralizacion(matriz_original, umbral):
     # Recorrido manual
     for y in range(alto):
         for x in range(ancho):
-
             # Obtener valor de gris (x,y)
             if matriz_original.ndim == 3:
                 # Promedio de los 3 canales (R+G+B)/3
                 suma_canales = 0.0
                 for canal in range(3):
-
                     # Convertimos explícitamente a float para evitar el overflow del uint8
                     suma_canales += float(matriz_original[y, x, canal])
                 valor_gris = suma_canales / 3
@@ -341,9 +365,11 @@ def obtener_umbralizacion(matriz_original, umbral):
 
     return resultado
 
+
 # --- ECUALIZACIÓN DEL HISTOGRAMA ---
 
-def ecualizar_histograma(matriz_original):
+
+def ecualizar_histograma(matriz_original: np.ndarray) -> np.ndarray:
     """
     Aplica la ecualización global basada en la frecuencia relativa de los niveles de gris.
     Implementa la fórmula de discretización teórica utilizando s_min para maximizar el rango dinámico:
@@ -384,7 +410,9 @@ def ecualizar_histograma(matriz_original):
                     gris_entrada = matriz_original[y, x, canal]
 
                     # Aplicación de la fórmula con s_k y s_min
-                    valor_transformado = 255 * ((probabilidad_acumulada[gris_entrada] - probabilidad_minima) / (1.0 - probabilidad_minima))
+                    valor_transformado = 255 * (
+                        (probabilidad_acumulada[gris_entrada] - probabilidad_minima) / (1.0 - probabilidad_minima)
+                    )
 
                     # Parte entera para obtener s_pico (valor discretizado)
                     gris_salida = int(valor_transformado)
@@ -394,7 +422,9 @@ def ecualizar_histograma(matriz_original):
                 gris_entrada = matriz_original[y, x]
 
                 # Aplicación de la fórmula con s_k y s_min
-                valor_transformado = 255 * ((probabilidad_acumulada[gris_entrada] - probabilidad_minima) / (1.0 - probabilidad_minima))
+                valor_transformado = 255 * (
+                    (probabilidad_acumulada[gris_entrada] - probabilidad_minima) / (1.0 - probabilidad_minima)
+                )
 
                 # Parte entera para obtener s_pico (valor discretizado)
                 gris_salida = int(valor_transformado)
@@ -402,10 +432,12 @@ def ecualizar_histograma(matriz_original):
 
     return resultado
 
+
 # --- GENERADORES ALEATORIOS ---
 # --- GENERADOR GAUSSIANO ---
 
-def generar_gaussiano(sigma, forma, media=0):
+
+def generar_gaussiano(sigma: float, forma: Tuple[int, int], media: float = 0) -> np.ndarray:
     """
     Genera ruido con distribución Normal (Gaussiana).
     """
@@ -415,21 +447,25 @@ def generar_gaussiano(sigma, forma, media=0):
     ruido_gaussiano = np.random.normal(loc=media, scale=sigma, size=forma)
     return ruido_gaussiano
 
+
 # --- GENERADOR EXPONENCIAL ---
 
-def generar_exponencial(lambd, forma):
+
+def generar_exponencial(lambd: float, forma: Tuple[int, int]) -> np.ndarray:
     """
     Genera ruido con distribución Exponencial.
     """
     if lambd <= 0:
         raise ValueError("El parámetro lambda debe ser mayor a 0.")
 
-    ruido_exponencial = np.random.exponential(scale=1.0/lambd, size=forma)
+    ruido_exponencial = np.random.exponential(scale=1.0 / lambd, size=forma)
     return ruido_exponencial
+
 
 # --- RUIDO ADITIVO GAUSSIANO ---
 
-def aplicar_ruido_aditivo_gaussiano(matriz_original, densidad, sigma):
+
+def aplicar_ruido_aditivo_gaussiano(matriz_original: np.ndarray, densidad: float, sigma: float) -> np.ndarray:
     """
     Contamina una fracción de la imagen sumando ruido con distribución Normal N(μ, σ).
     Sigue el modelo aditivo: Ic(i,j) = I(i,j) + η(i,j) para (i,j) ∈ D,
@@ -454,18 +490,22 @@ def aplicar_ruido_aditivo_gaussiano(matriz_original, densidad, sigma):
     ruido_generado = generar_gaussiano(sigma, matriz_original.shape[:2])
 
     # Aplicar la suma solo a los píxeles seleccionados
-    if matriz_original.ndim == 3: # Imagen color
+    if matriz_original.ndim == 3:  # Imagen color
         for canal in range(3):
-            matriz_float[:,:,canal][mascara] += ruido_generado[mascara]
-    else: # Imagen gris
+            matriz_float[:, :, canal][mascara] += ruido_generado[mascara]
+    else:  # Imagen gris
         matriz_float[mascara] += ruido_generado[mascara]
 
     # Clipping para mantener el rango uint8
     return np.clip(matriz_float, 0, 255).astype(np.uint8)
 
+
 # --- RUIDO MULTIPLICATIVO EXPONENCIAL ---
 
-def aplicar_ruido_multiplicativo_exponencial(matriz_original, porcentaje, lambd):
+
+def aplicar_ruido_multiplicativo_exponencial(
+    matriz_original: np.ndarray, porcentaje: float, lambd: float
+) -> np.ndarray:
     """
     Contamina una fracción de la imagen mediante ruido exponencial multiplicativo.
     Sigue el modelo: Ic(i,j) = I(i,j) * η(i,j) para (i,j) ∈ D,
@@ -489,19 +529,21 @@ def aplicar_ruido_multiplicativo_exponencial(matriz_original, porcentaje, lambd)
     ruido = generar_exponencial(lambd, matriz_original.shape[:2])
 
     # Aplicación del modelo multiplicativo solo a los píxeles seleccionados
-    if matriz_original.ndim == 3: # Caso imagen color (RGB)
+    if matriz_original.ndim == 3:  # Caso imagen color (RGB)
         for i in range(3):
             # Ic = I * η
-            res[:,:,i][mascara] *= ruido[mascara]
-    else: # Caso niveles de gris
+            res[:, :, i][mascara] *= ruido[mascara]
+    else:  # Caso niveles de gris
         res[mascara] *= ruido[mascara]
 
     # Truncamiento (Clipping) para asegurar que el resultado final pertenezca al rango [0, 255]
     return np.clip(res, 0, 255).astype(np.uint8)
 
+
 # --- RUIDO SAL Y PIMIENTA ---
 
-def aplicar_ruido_sal_y_pimienta(matriz_original, densidad):
+
+def aplicar_ruido_sal_y_pimienta(matriz_original: np.ndarray, densidad: float) -> np.ndarray:
     """
     Sustituye píxeles por 0 (pimienta) o 255 (sal) según una densidad p.
     """
@@ -519,22 +561,24 @@ def aplicar_ruido_sal_y_pimienta(matriz_original, densidad):
     variables_aleatorias = np.random.rand(*matriz_original.shape[:2])
 
     # Aplicamos las sustituciones
-    matriz_ruidosa[variables_aleatorias <= probabilidad] = 0           # Pimienta
-    matriz_ruidosa[variables_aleatorias > (1 - probabilidad)] = 255    # Sal
+    matriz_ruidosa[variables_aleatorias <= probabilidad] = 0  # Pimienta
+    matriz_ruidosa[variables_aleatorias > (1 - probabilidad)] = 255  # Sal
 
     return matriz_ruidosa
+
 
 # --- FILTROS DESLIZANTES ---
 # --- FILTRO DE LA MEDIA ---
 
-def aplicar_filtro_media(matriz_original, tamano_mascara):
+
+def aplicar_filtro_media(matriz_original: np.ndarray, tamano_mascara: int) -> np.ndarray:
     """
     Filtro de la Media.
     Consiste en pasar una máscara con pesos (núcleo) donde todos los elementos valen 1/N.
     Reemplaza el centro por el promedio de la vecindad.
     """
     if tamano_mascara % 2 == 0:
-        raise ValueError(f"El tamaño de la máscara debe ser impar.")
+        raise ValueError("El tamaño de la máscara debe ser impar.")
 
     alto, ancho = matriz_original.shape[:2]
     offset = tamano_mascara // 2
@@ -560,15 +604,17 @@ def aplicar_filtro_media(matriz_original, tamano_mascara):
                 resultado[y, x] = suma // area
     return resultado
 
+
 # --- FILTRO DE LA MEDIANA ---
 
-def aplicar_filtro_mediana(matriz_original, tamano_mascara):
+
+def aplicar_filtro_mediana(matriz_original: np.ndarray, tamano_mascara: int) -> np.ndarray:
     """
     Consiste en ordenar los valores de la vecindad y tomar el del medio
     Efectivo para eliminar ruido Sal y Pimienta.
     """
     if tamano_mascara % 2 == 0:
-        raise ValueError(f"El tamaño de la máscara debe ser impar.")
+        raise ValueError("El tamaño de la máscara debe ser impar.")
 
     alto, ancho = matriz_original.shape[:2]
     offset = tamano_mascara // 2
@@ -579,56 +625,59 @@ def aplicar_filtro_mediana(matriz_original, tamano_mascara):
 
     for y in range(offset, alto - offset):
         for x in range(offset, ancho - offset):
-            
             if matriz_original.ndim == 2:
                 # Caso Niveles de Gris: Extraer, aplanar, ordenar y tomar centro
-                vecindad = matriz_original[y-offset : y+offset+1, x-offset : x+offset+1]
+                vecindad = matriz_original[y - offset : y + offset + 1, x - offset : x + offset + 1]
                 lista_valores = sorted(vecindad.flatten().tolist())
                 matriz_filtrada[y, x] = lista_valores[indice_central]
             else:
                 # Caso RGB: Procesar cada canal por separado
                 for canal in range(3):
-                    vecindad_canal = matriz_original[y-offset : y+offset+1, x-offset : x+offset+1, canal]
+                    vecindad_canal = matriz_original[y - offset : y + offset + 1, x - offset : x + offset + 1, canal]
                     lista_valores = sorted(vecindad_canal.flatten().tolist())
                     matriz_filtrada[y, x, canal] = lista_valores[indice_central]
 
     return matriz_filtrada
 
+
 # --- GENERA LA MASCARA PARA EL FILTRO DE LA MEDIANA PONDERADA ---
 
-def generar_pesos_mediana_ponderada(tamano_mascara):
+
+def generar_pesos_mediana_ponderada(tamano_mascara: int) -> np.ndarray:
     """
     Genera una matriz de pesos enteros basada en una aproximación discreta
     de la campana de Gauss utilizando coeficientes binomiales.
     """
     n = tamano_mascara - 1
     kernel_1d = np.zeros(tamano_mascara, dtype=int)
-    
+
     # Generar el vector 1D iterativamente
     valor = 1
     for i in range(tamano_mascara):
         kernel_1d[i] = valor
         # Fórmula iterativa para el siguiente coeficiente binomial
         valor = valor * (n - i) // (i + 1)
-        
+
     # Generar la matriz 2D manualmente
     pesos = np.zeros((tamano_mascara, tamano_mascara), dtype=int)
     for y in range(tamano_mascara):
         for x in range(tamano_mascara):
             pesos[y, x] = kernel_1d[y] * kernel_1d[x]
-            
+
     return pesos
+
 
 # --- FILTRO DE LA MEDIANA PONDERADA ---
 
-def aplicar_filtro_mediana_ponderada(matriz_original, tamano_mascara):
+
+def aplicar_filtro_mediana_ponderada(matriz_original: np.ndarray, tamano_mascara: int) -> np.ndarray:
     """
     Aplica el filtro de la mediana ponderada (operador no lineal de orden).
-    A diferencia de la mediana simple, cada píxel de la vecindad se repite 
+    A diferencia de la mediana simple, cada píxel de la vecindad se repite
     según un peso definido en una máscara, dándole mayor importancia al centro.
     """
     if tamano_mascara % 2 == 0:
-        raise ValueError(f"El tamaño de la máscara debe ser impar.")
+        raise ValueError("El tamaño de la máscara debe ser impar.")
 
     alto, ancho = matriz_original.shape[:2]
     offset = tamano_mascara // 2
@@ -641,27 +690,24 @@ def aplicar_filtro_mediana_ponderada(matriz_original, tamano_mascara):
     for y in range(offset, alto - offset):
         for x in range(offset, ancho - offset):
             # Extracción de la vecindad actual centrada en (y, x)
-            vecindad = matriz_original[y-offset:y+offset+1, x-offset:x+offset+1]
+            vecindad = matriz_original[y - offset : y + offset + 1, x - offset : x + offset + 1]
 
             if matriz_original.ndim == 2:
-
                 # Caso niveles de gris
                 valores_expandidos = []
                 for i in range(tamano_mascara):
                     for j in range(tamano_mascara):
-                        
                         # Expansión manual: se repite el valor del píxel según indica su peso
                         peso = mascara_pesos[i, j]
                         valor_pixel = vecindad[i, j]
                         valores_expandidos.extend([valor_pixel] * peso)
-                
+
                 # Ordenamiento manual y selección del valor central (mediana ponderada)
                 valores_expandidos.sort()
                 indice_central = len(valores_expandidos) // 2
                 matriz_filtrada[y, x] = valores_expandidos[indice_central]
 
             else:
-
                 # Caso RGB: Procesar cada canal por separado
                 for canal in range(3):
                     valores_expandidos = []
@@ -670,7 +716,7 @@ def aplicar_filtro_mediana_ponderada(matriz_original, tamano_mascara):
                             peso = mascara_pesos[i, j]
                             valor_pixel = vecindad[i, j, canal]
                             valores_expandidos.extend([valor_pixel] * peso)
-                    
+
                     # Ordenamiento y selección de mediana por canal
                     valores_expandidos.sort()
                     indice_central = len(valores_expandidos) // 2
@@ -678,9 +724,11 @@ def aplicar_filtro_mediana_ponderada(matriz_original, tamano_mascara):
 
     return matriz_filtrada
 
+
 # --- GENERA LA MASCARA PARA FILTRO GAUSSIANO ---
 
-def generar_mascara_gaussiana(sigma, tamano_mascara):
+
+def generar_mascara_gaussiana(sigma: float, tamano_mascara: int) -> np.ndarray:
     """
     Genera el núcleo (kernel) de pesos siguiendo la Función Gaussiana
     de dos variables: G(x,y) = (1 / 2πσ²) * exp(-(x² + y²) / σ²)
@@ -697,29 +745,30 @@ def generar_mascara_gaussiana(sigma, tamano_mascara):
     # Iteración para el cálculo de distancias y pesos
     for y in range(-radio, radio + 1):
         for x in range(-radio, radio + 1):
-            
             # Distancia cuadrada: (x - μ1)² + (y - μ2)² con μ = (0,0)
             distancia_cuadrada = x**2 + y**2
-            
+
             # Exponente: -(distancia_cuadrada) / σ²
             exponente = -distancia_cuadrada / (sigma**2)
 
             # Función completa G(x,y)
             valor = coeficiente * np.exp(exponente)
-            
+
             mascara[y + radio, x + radio] = valor
             suma_total += valor
-            
+
     # Normalización manual para que la suma de pesos sea 1
     for y in range(tamano_mascara):
         for x in range(tamano_mascara):
             mascara[y, x] /= suma_total
-            
+
     return mascara
+
 
 # --- FILTRO GAUSSIANO ---
 
-def aplicar_filtro_gaussiano(matriz_original, sigma):
+
+def aplicar_filtro_gaussiano(matriz_original: np.ndarray, sigma: float) -> np.ndarray:
     """
     Reemplaza el valor original del pixel con la suma de los valores
     originales multiplicados por los pesos de la máscara.
@@ -746,7 +795,6 @@ def aplicar_filtro_gaussiano(matriz_original, sigma):
     # Navegación por la imagen (Ventana deslizante)
     for y in range(offset, alto - offset):
         for x in range(offset, ancho - offset):
-
             if matriz_original.ndim == 3:  # Caso multicanal (RGB)
                 for canal in range(3):
                     acumulado = 0.0
@@ -765,43 +813,47 @@ def aplicar_filtro_gaussiano(matriz_original, sigma):
 
     return np.clip(resultado, 0, 255).astype(np.uint8)
 
+
 # --- GENERA LA MASCARA REALCE DE BORDES ---
 
-def generar_mascara_realce_de_bordes(tamano_mascara):
+
+def generar_mascara_realce_de_bordes(tamano_mascara: int) -> np.ndarray:
     """
     Genera la máscara de realce de tamaño variable
-    Posee coeficientes negativos en la periferia y el centro positivo 
+    Posee coeficientes negativos en la periferia y el centro positivo
     de manera que todos los elementos sumen 0.
     """
     mascara = np.zeros((tamano_mascara, tamano_mascara), dtype=float)
     centro = tamano_mascara // 2
-    
+
     # Se asignan coeficientes negativos (-1) en la periferia
     # y se calcula el valor central para que la suma sea 0.
     valor_periferia = -1.0
     suma_periferia = 0.0
-    
+
     for y in range(tamano_mascara):
         for x in range(tamano_mascara):
             if y == centro and x == centro:
                 continue
             mascara[y, x] = valor_periferia
             suma_periferia += valor_periferia
-            
+
     # El centro debe compensar la suma de la periferia: Centro = - (Suma Periferia)
     mascara[centro, centro] = -suma_periferia
-    
+
     return mascara
+
 
 # --- FILTRO REALCE DE BORDES ---
 
-def aplicar_filtro_realce_de_bordes(matriz_original, tamano_mascara):
+
+def aplicar_filtro_realce_de_bordes(matriz_original: np.ndarray, tamano_mascara: int) -> np.ndarray:
     """
     Realce de Bordes con máscara de tamaño variable.
     Destaca detalles intensificando las transiciones de intensidad.
     """
     if tamano_mascara % 2 == 0:
-        raise ValueError(f"El tamaño de la máscara debe ser impar.")
+        raise ValueError("El tamaño de la máscara debe ser impar.")
 
     # Generación de la máscara acorde al tamaño solicitado
     mascara = generar_mascara_realce_de_bordes(tamano_mascara)
@@ -815,15 +867,13 @@ def aplicar_filtro_realce_de_bordes(matriz_original, tamano_mascara):
     # Navegación manual por la imagen (Ventana deslizante)
     for y in range(offset, alto - offset):
         for x in range(offset, ancho - offset):
-            
             if matriz_original.ndim == 3:  # Caso multicanal (RGB)
                 for canal in range(3):
                     acumulado = 0.0
-                    
+
                     # Convolución manual: suma de productos de la vecindad por pesos
                     for my in range(-offset, offset + 1):
                         for mx in range(-offset, offset + 1):
-                            
                             # (y + my, x + mx) define la posición en la imagen
                             # (my + offset, mx + offset) define la posición en la máscara
                             pixel_valor = matriz_float[y + my, x + mx, canal]

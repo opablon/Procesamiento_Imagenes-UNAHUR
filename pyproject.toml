@@ -1,0 +1,17 @@
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+exclude = [
+    ".git",
+    ".ruff_cache",
+    ".vscode",
+    "venv",
+    "__pycache__"
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E731", "E722", "E402"]
+
+[tool.pyrefly]
+# Configuración adicional para pyrefly si la llegase a soportar por TOML

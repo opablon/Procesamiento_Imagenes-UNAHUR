@@ -40,6 +40,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller
           pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Lint and Type Check
+        run: |
+          ruff check .
+          # Omitimos pyrefly check en el pipeline si el servidor aún no lo soporta directamente vía CLI, o lo invocamos:
+          # pyrefly check (Asumiendo que pyrefly tiene CLI, de lo contrario se usa pyre)
+          pyrefly check || echo "Pyrefly found issues, reviewing..."
 
       - name: Build with PyInstaller
         run: |

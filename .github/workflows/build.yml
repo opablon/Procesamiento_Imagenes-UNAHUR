@@ -51,7 +51,7 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          pyinstaller --noconsole --onefile --collect-all customtkinter --name ${{ env.ASSET_NAME }} main.py
+          pyinstaller --noconsole --onefile --collect-all customtkinter --hidden-import PIL._tkinter_finder --name ${{ env.ASSET_NAME }} main.py
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v2

@@ -54,6 +54,33 @@ def pedir_string(titulo: str, mensaje: str) -> Optional[str]:
     return dialog.get_input()
 
 
+def pedir_opcion(titulo: str, mensaje: str, opciones: list[str]) -> Optional[str]:
+    dialog = ctk.CTkToplevel()
+    dialog.title(titulo)
+    dialog.geometry("300x150")
+    dialog.attributes("-topmost", True)
+    dialog.grab_set()
+
+    resultado: list[Optional[str]] = [None]
+
+    lbl = ctk.CTkLabel(dialog, text=mensaje)
+    lbl.pack(pady=10)
+
+    var = ctk.StringVar(value=opciones[0])
+    combo = ctk.CTkOptionMenu(dialog, values=opciones, variable=var)
+    combo.pack(pady=10)
+
+    def on_ok():
+        resultado[0] = var.get()
+        dialog.destroy()
+
+    btn = ctk.CTkButton(dialog, text="Aceptar", command=on_ok)
+    btn.pack(pady=10)
+
+    dialog.wait_window()
+    return resultado[0]
+
+
 import core.funciones as funciones
 from gui.menus import GestorMenus
 from gui.visualizaciones import VisorMatplotlib, preparar_histograma
@@ -456,6 +483,74 @@ class AppProcesamiento:
             self._mostrar_ventana_grafico(fig, titulo_full)
         except Exception as e:
             messagebox.showerror("Error", str(e))
+
+    # --- Comandos TP2 ---
+
+    def bordes_prewitt(self) -> None:
+        self._ejecutar_operacion_core(funciones.aplicar_operador_prewitt, "prewitt")
+
+    def bordes_sobel(self) -> None:
+        self._ejecutar_operacion_core(funciones.aplicar_operador_sobel, "sobel")
+
+    def laplaciano(self) -> None:
+        self._ejecutar_operacion_core(funciones.aplicar_mascara_laplaciana, "laplaciano")
+
+    def laplaciano_pendiente(self) -> None:
+        umbral = pedir_float("Umbral", "Umbral para detección de cruce por cero:", minvalue=0)
+        if umbral is not None:
+            self._ejecutar_operacion_core(funciones.aplicar_laplaciano_con_pendiente, "lap_pend", umbral)
+
+    def marr_hildreth(self) -> None:
+        sigma = pedir_float("Sigma", "Desvío estándar de la Gaussiana (sigma > 0):", minvalue=0.1)
+        if sigma is None:
+            return
+        umbral = pedir_float("Umbral", "Umbral de pendiente para cruce por cero:", minvalue=0)
+        if umbral is not None:
+            self._ejecutar_operacion_core(funciones.aplicar_marr_hildreth, "marr_h", sigma, umbral)
+
+    def difusion_isotropica(self) -> None:
+        t = pedir_float("Tiempo (t)", "Parámetro t (equivalente a sigma > 0):", minvalue=0.1)
+        if t is not None:
+            self._ejecutar_operacion_core(funciones.aplicar_difusion_isotropica, "dif_iso", t)
+
+    def difusion_anisotropica(self) -> None:
+        iters = pedir_entero("Iteraciones", "Cantidad de iteraciones (ej: 10):", minvalue=1)
+        if iters is None:
+            return
+        sigma = pedir_float("Sigma", "Parámetro kappa/sigma (ej: 10.0):", minvalue=0.1)
+        if sigma is None:
+            return
+        metodo = pedir_opcion("Método", "Seleccione función de conducción:", ["Leclerc", "Lorentz"])
+        if metodo is not None:
+            # lambda_paso fijo en 0.25 para estabilidad
+            self._ejecutar_operacion_core(
+                funciones.aplicar_difusion_anisotropica, f"dif_aniso_{metodo.lower()}", iters, sigma, 0.25, metodo
+            )
+
+    def filtro_bilateral(self) -> None:
+        tamano = pedir_entero("Tamaño", "Tamaño de la máscara (impar, ej: 5):", minvalue=3)
+        if tamano is None:
+            return
+        if tamano % 2 == 0:
+            messagebox.showerror("Error", "El tamaño de la máscara debe ser impar.")
+            return
+        sigma_s = pedir_float("Sigma S", "Sigma Espacial (ej: 2.0):", minvalue=0.1)
+        if sigma_s is None:
+            return
+        sigma_r = pedir_float("Sigma R", "Sigma Rango (ej: 10.0):", minvalue=0.1)
+        if sigma_r is not None:
+            self._ejecutar_operacion_core(funciones.aplicar_filtro_bilateral, "bilateral", tamano, sigma_s, sigma_r)
+
+    def umbral_iterativa(self) -> None:
+        dt = pedir_float("Delta T", "Criterio de convergencia delta_t (ej: 0.5):", minvalue=0.01)
+        if dt is not None:
+            self._ejecutar_operacion_core(funciones.aplicar_umbralizacion_automatica, "umb_iter", dt)
+
+    def umbral_otsu(self) -> None:
+        self._ejecutar_operacion_core(funciones.aplicar_umbralizacion_otsu, "otsu")
+
+    def segmentacion_bandas(self) -> None:
+        self._ejecutar_operacion_core(funciones.segmentar_color_por_bandas, "seg_color")
 
 
 def iniciar_aplicacion() -> None:

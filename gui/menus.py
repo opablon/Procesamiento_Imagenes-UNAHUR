@@ -67,11 +67,36 @@ class GestorMenus:
         )
         self.menu_tp1.pack(side=tk.LEFT, padx=5, pady=5)
 
+        # Menú TP2
+        self.var_tp2 = ctk.StringVar(value="TP2")
+        self.menu_tp2 = ctk.CTkOptionMenu(
+            self.header_frame,
+            values=[
+                "Bordes: Prewitt",
+                "Bordes: Sobel",
+                "Laplaciano",
+                "Laplaciano con Pendiente",
+                "Marr-Hildreth (LoG)",
+                "Difusión Isotrópica",
+                "Difusión Anisotrópica",
+                "Filtro Bilateral",
+                "Umbralización Óptima Iter.",
+                "Umbralización Otsu",
+                "Segmentación Color (Otsu)",
+            ],
+            command=self._handler_tp2,
+            variable=self.var_tp2,
+            width=220,
+            state=tk.DISABLED,
+        )
+        self.menu_tp2.pack(side=tk.LEFT, padx=5, pady=5)
+
     def _reset_labels(self) -> None:
         """Reinicia el texto mostrado en los OptionMenu."""
         self.var_archivo.set("Archivo")
         self.var_tp0.set("TP0")
         self.var_tp1.set("TP1")
+        self.var_tp2.set("TP2")
 
     def _handler_archivo(self, eleccion: str) -> None:
         self._reset_labels()
@@ -128,10 +153,36 @@ class GestorMenus:
         elif eleccion == "Ruido: Sal y Pimienta":
             self.app.ruido_sal_pimienta()
 
+    def _handler_tp2(self, eleccion: str) -> None:
+        self._reset_labels()
+        if eleccion == "Bordes: Prewitt":
+            self.app.bordes_prewitt()
+        elif eleccion == "Bordes: Sobel":
+            self.app.bordes_sobel()
+        elif eleccion == "Laplaciano":
+            self.app.laplaciano()
+        elif eleccion == "Laplaciano con Pendiente":
+            self.app.laplaciano_pendiente()
+        elif eleccion == "Marr-Hildreth (LoG)":
+            self.app.marr_hildreth()
+        elif eleccion == "Difusión Isotrópica":
+            self.app.difusion_isotropica()
+        elif eleccion == "Difusión Anisotrópica":
+            self.app.difusion_anisotropica()
+        elif eleccion == "Filtro Bilateral":
+            self.app.filtro_bilateral()
+        elif eleccion == "Umbralización Óptima Iter.":
+            self.app.umbral_iterativa()
+        elif eleccion == "Umbralización Otsu":
+            self.app.umbral_otsu()
+        elif eleccion == "Segmentación Color (Otsu)":
+            self.app.segmentacion_bandas()
+
     def cambiar_estado(self, estado: str) -> None:
         """Habilita o deshabilita las opciones principales según el estado."""
         self.menu_tp0.configure(state=estado)
         self.menu_tp1.configure(state=estado)
+        self.menu_tp2.configure(state=estado)
 
     def cambiar_estado_roi(self, estado: str) -> None:
         """Habilita opciones dependientes de ROI agregándolas dinámicamente."""

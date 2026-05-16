@@ -568,6 +568,38 @@ def aplicar_ruido_sal_y_pimienta(matriz_original: np.ndarray, densidad: float) -
 
 
 # --- FILTROS DESLIZANTES ---
+
+
+def _aplicar_convolucion_manual(matriz: np.ndarray, mascara: np.ndarray) -> np.ndarray:
+    """
+    Aplica una máscara de pesos de forma manual a una imagen 2D o RGB[cite: 1].
+    Devuelve el resultado en float32 para procesar gradientes o suavizados sin saturación[cite: 1].
+    """
+    tamano = mascara.shape[0]
+    offset = tamano // 2
+    alto, ancho = matriz.shape[:2]
+
+    matriz_f = matriz.astype(np.float32)
+    resultado = np.copy(matriz_f)
+
+    for y in range(offset, alto - offset):
+        for x in range(offset, ancho - offset):
+            if matriz.ndim == 3:  # Caso RGB
+                for c in range(3):
+                    acum = 0.0
+                    for my in range(-offset, offset + 1):
+                        for mx in range(-offset, offset + 1):
+                            acum += matriz_f[y + my, x + mx, c] * mascara[my + offset, mx + offset]
+                    resultado[y, x, c] = acum
+            else:  # Caso Gris
+                acum = 0.0
+                for my in range(-offset, offset + 1):
+                    for mx in range(-offset, offset + 1):
+                        acum += matriz_f[y + my, x + mx] * mascara[my + offset, mx + offset]
+                resultado[y, x] = acum
+    return resultado
+
+
 # --- FILTRO DE LA MEDIA ---
 
 
@@ -580,29 +612,13 @@ def aplicar_filtro_media(matriz_original: np.ndarray, tamano_mascara: int) -> np
     if tamano_mascara % 2 == 0:
         raise ValueError("El tamaño de la máscara debe ser impar.")
 
-    alto, ancho = matriz_original.shape[:2]
-    offset = tamano_mascara // 2
-    resultado = np.copy(matriz_original)
-    area = tamano_mascara * tamano_mascara
+    # Creamos la máscara donde cada peso es 1 / N^2
+    mascara = np.full((tamano_mascara, tamano_mascara), 1.0 / (tamano_mascara**2), dtype=float)
 
-    # Recorremos la imagen evitando los bordes
-    for y in range(offset, alto - offset):
-        for x in range(offset, ancho - offset):
-            if matriz_original.ndim == 3:
-                for canal in range(3):
-                    suma = 0
-                    # Convolución de la vecindad
-                    for my in range(-offset, offset + 1):
-                        for mx in range(-offset, offset + 1):
-                            suma += int(matriz_original[y + my, x + mx, canal])
-                    resultado[y, x, canal] = suma // area
-            else:
-                suma = 0
-                for my in range(-offset, offset + 1):
-                    for mx in range(-offset, offset + 1):
-                        suma += int(matriz_original[y + my, x + mx])
-                resultado[y, x] = suma // area
-    return resultado
+    # Delegamos la computación
+    resultado = _aplicar_convolucion_manual(matriz_original, mascara)
+
+    return np.clip(resultado, 0, 255).astype(np.uint8)
 
 
 # --- FILTRO DE LA MEDIANA ---
@@ -728,7 +744,7 @@ def aplicar_filtro_mediana_ponderada(matriz_original: np.ndarray, tamano_mascara
 # --- GENERA LA MASCARA PARA FILTRO GAUSSIANO ---
 
 
-def generar_mascara_gaussiana(sigma: float, tamano_mascara: int) -> np.ndarray:
+def _generar_mascara_gaussiana(sigma: float, tamano_mascara: int) -> np.ndarray:
     """
     Genera el núcleo (kernel) de pesos siguiendo la Función Gaussiana
     de dos variables: G(x,y) = (1 / 2πσ²) * exp(-(x² + y²) / σ²)
@@ -784,32 +800,10 @@ def aplicar_filtro_gaussiano(matriz_original: np.ndarray, sigma: float) -> np.nd
         raise ValueError(f"El desvío (sigma={sigma}) debe generar una máscara de tamaño impar. Ingrese otro valor.")
 
     # Obtención de la máscara de pesos
-    mascara = generar_mascara_gaussiana(sigma, tamano_mascara)
-    offset = tamano_mascara // 2
-    alto, ancho = matriz_original.shape[:2]
+    mascara = _generar_mascara_gaussiana(sigma, tamano_mascara)
 
-    # Trabajamos en float32 para el cálculo
-    resultado = matriz_original.astype(np.float32)
-    matriz_float = matriz_original.astype(np.float32)
-
-    # Navegación por la imagen (Ventana deslizante)
-    for y in range(offset, alto - offset):
-        for x in range(offset, ancho - offset):
-            if matriz_original.ndim == 3:  # Caso multicanal (RGB)
-                for canal in range(3):
-                    acumulado = 0.0
-
-                    # Convolución manual: suma de productos de la vecindad por pesos
-                    for my in range(-offset, offset + 1):
-                        for mx in range(-offset, offset + 1):
-                            acumulado += matriz_float[y + my, x + mx, canal] * mascara[my + offset, mx + offset]
-                    resultado[y, x, canal] = acumulado
-            else:  # Caso escala de grises (2D)
-                acumulado = 0.0
-                for my in range(-offset, offset + 1):
-                    for mx in range(-offset, offset + 1):
-                        acumulado += matriz_float[y + my, x + mx] * mascara[my + offset, mx + offset]
-                resultado[y, x] = acumulado
+    # Convolución centralizada
+    resultado = _aplicar_convolucion_manual(matriz_original, mascara)
 
     return np.clip(resultado, 0, 255).astype(np.uint8)
 
@@ -817,7 +811,7 @@ def aplicar_filtro_gaussiano(matriz_original: np.ndarray, sigma: float) -> np.nd
 # --- GENERA LA MASCARA REALCE DE BORDES ---
 
 
-def generar_mascara_realce_de_bordes(tamano_mascara: int) -> np.ndarray:
+def _generar_mascara_realce_de_bordes(tamano_mascara: int) -> np.ndarray:
     """
     Genera la máscara de realce de tamaño variable
     Posee coeficientes negativos en la periferia y el centro positivo
@@ -856,38 +850,530 @@ def aplicar_filtro_realce_de_bordes(matriz_original: np.ndarray, tamano_mascara:
         raise ValueError("El tamaño de la máscara debe ser impar.")
 
     # Generación de la máscara acorde al tamaño solicitado
-    mascara = generar_mascara_realce_de_bordes(tamano_mascara)
-    offset = tamano_mascara // 2
-    alto, ancho = matriz_original.shape[:2]
+    mascara = _generar_mascara_realce_de_bordes(tamano_mascara)
 
-    # Matriz de salida en float para precisión en la suma de productos
-    resultado = matriz_original.astype(np.float32)
-    matriz_float = matriz_original.astype(np.float32)
-
-    # Navegación manual por la imagen (Ventana deslizante)
-    for y in range(offset, alto - offset):
-        for x in range(offset, ancho - offset):
-            if matriz_original.ndim == 3:  # Caso multicanal (RGB)
-                for canal in range(3):
-                    acumulado = 0.0
-
-                    # Convolución manual: suma de productos de la vecindad por pesos
-                    for my in range(-offset, offset + 1):
-                        for mx in range(-offset, offset + 1):
-                            # (y + my, x + mx) define la posición en la imagen
-                            # (my + offset, mx + offset) define la posición en la máscara
-                            pixel_valor = matriz_float[y + my, x + mx, canal]
-                            peso = mascara[my + offset, mx + offset]
-                            acumulado += pixel_valor * peso
-                    resultado[y, x, canal] = acumulado
-            else:  # Caso escala de grises (2D)
-                acumulado = 0.0
-                for my in range(-offset, offset + 1):
-                    for mx in range(-offset, offset + 1):
-                        pixel_valor = matriz_float[y + my, x + mx]
-                        peso = mascara[my + offset, mx + offset]
-                        acumulado += pixel_valor * peso
-                resultado[y, x] = acumulado
+    # Aplicamos la máscara
+    resultado = _aplicar_convolucion_manual(matriz_original, mascara)
 
     # Retorno con escalado para preservar la integridad de las transiciones detectadas
     return _escalar_a_8bit(resultado)
+
+
+# --- INICIO TP 2 ---
+# --- DETECTORES DE BORDES ---
+# --- PREWITT ---
+
+
+def aplicar_operador_prewitt(matriz_original: np.ndarray) -> np.ndarray:
+    """
+    Detecta bordes mediante el operador de Prewitt estándar de 3x3.
+    """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
+    # Máscaras de Prewitt
+    mx = np.array([[-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0]], dtype=float)
+
+    my = np.array([[-1.0, -1.0, -1.0], [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], dtype=float)
+
+    # Convolución manual
+    ix = _aplicar_convolucion_manual(matriz_original, mx)
+    iy = _aplicar_convolucion_manual(matriz_original, my)
+
+    # Magnitud del gradiente: sqrt(Ix^2 + Iy^2)
+    resultado = np.sqrt(ix**2 + iy**2)
+
+    # Colapsar a escala de grises conservando el borde más fuerte
+    if resultado.ndim == 3:
+        resultado = np.max(resultado, axis=2)
+
+    return np.clip(resultado, 0, 255).astype(np.uint8)
+
+
+# --- SOBEL ---
+
+
+def aplicar_operador_sobel(matriz_original: np.ndarray) -> np.ndarray:
+    """
+    Detecta bordes mediante el operador de Sobel estándar de 3x3.
+    """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
+    # Máscaras de Sobel
+    mx = np.array([[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]], dtype=float)
+
+    my = np.array([[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]], dtype=float)
+
+    # Convolución manual
+    ix = _aplicar_convolucion_manual(matriz_original, mx)
+    iy = _aplicar_convolucion_manual(matriz_original, my)
+
+    # Magnitud del gradiente
+    resultado = np.sqrt(ix**2 + iy**2)
+
+    # Colapsar a escala de grises conservando el borde más fuerte
+    if resultado.ndim == 3:
+        resultado = np.max(resultado, axis=2)
+
+    return np.clip(resultado, 0, 255).astype(np.uint8)
+
+
+# --- LAPLACIANO ---
+
+
+def _calcular_laplaciano_crudo(matriz_original: np.ndarray) -> np.ndarray:
+    """
+    Realiza la convolución y devuelve los floats con signo.
+    """
+    laplaciana_3x3 = np.array([[0.0, -1.0, 0.0], [-1.0, 4.0, -1.0], [0.0, -1.0, 0.0]], dtype=float)
+
+    return _aplicar_convolucion_manual(matriz_original, laplaciana_3x3)
+
+
+def aplicar_mascara_laplaciana(matriz_original: np.ndarray) -> np.ndarray:
+    """
+    Aplica la convolución con la máscara Laplaciana de 4-vecinos.
+    Sigue la aproximación: ΔI(x,y) = 4*I(x,y) - I(x-1,y) - I(x+1,y) - I(x,y-1) - I(x,y+1).
+    """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
+    crudo = _calcular_laplaciano_crudo(matriz_original)
+    escalado = _escalar_a_8bit(crudo)
+
+    # Colapsar a escala de grises conservando el borde más fuerte
+    if escalado.ndim == 3:
+        return np.max(escalado, axis=2)
+
+    return escalado
+
+
+# --- EVALUACIÓN DE PENDIENTE ---
+
+
+def _detectar_cruces_por_cero(matriz_flotante: np.ndarray, umbral: float) -> np.ndarray:
+    """
+    Identifica cruces por cero sobre una matriz de un solo canal (gris).
+    """
+    alto, ancho = matriz_flotante.shape[:2]
+    resultado_final = np.zeros((alto, ancho), dtype=np.uint8)
+
+    if matriz_flotante.ndim == 3:
+        for y in range(alto - 1):
+            for x in range(ancho - 1):
+                for canal in range(3):
+                    val_actual = matriz_flotante[y, x, canal]
+                    val_derecha = matriz_flotante[y, x + 1, canal]
+                    val_abajo = matriz_flotante[y + 1, x, canal]
+
+                    # Cambio horizontal
+                    if (val_actual * val_derecha) < 0 and np.abs(val_actual - val_derecha) >= umbral:
+                        resultado_final[y, x] = 255
+                        break  # Borde detectado, pasar al siguiente píxel
+
+                    # Cambio vertical
+                    if (val_actual * val_abajo) < 0 and np.abs(val_actual - val_abajo) >= umbral:
+                        resultado_final[y, x] = 255
+                        break
+    else:
+        for y in range(alto - 1):
+            for x in range(ancho - 1):
+                val_actual = matriz_flotante[y, x]
+                val_derecha = matriz_flotante[y, x + 1]
+                val_abajo = matriz_flotante[y + 1, x]
+
+                if (val_actual * val_derecha) < 0 and np.abs(val_actual - val_derecha) >= umbral:
+                    resultado_final[y, x] = 255
+                elif (val_actual * val_abajo) < 0 and np.abs(val_actual - val_abajo) >= umbral:
+                    resultado_final[y, x] = 255
+
+    return resultado_final
+
+
+# --- LAPLACIANO CON PENDIENTE ---
+
+
+def aplicar_laplaciano_con_pendiente(matriz_original: np.ndarray, umbral: float) -> np.ndarray:
+    """
+    Usa el cálculo crudo para encontrar los cruces por cero y devuelve una imagen binaria.
+    """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
+    crudo = _calcular_laplaciano_crudo(matriz_original)
+
+    return _detectar_cruces_por_cero(crudo, umbral)
+
+
+# --- LAPLACIANO GAUSSIANO (MARR-HILDRETH) ---
+
+
+def _generar_mascara_log(sigma: float, tamano_mascara: int) -> np.ndarray:
+    """
+    Genera la máscara del Laplaciano del Gaussiano (LoG) centrada en (0,0).
+    """
+    radio = tamano_mascara // 2
+    mascara = np.zeros((tamano_mascara, tamano_mascara), dtype=float)
+
+    # Pre-cálculo de constantes para optimizar el bucle manual
+    sigma_sq = sigma**2
+    sigma_cub = sigma**3
+    coeficiente = 1.0 / (2.0 * np.pi * sigma_cub)
+
+    suma_verificacion = 0.0
+
+    for y in range(-radio, radio + 1):
+        for x in range(-radio, radio + 1):
+            dist_cuadrada = float(x**2 + y**2)
+            exponente = -dist_cuadrada / (2.0 * sigma_sq)
+
+            # Fórmula de Marr-Hildreth
+            termino_log = (dist_cuadrada / sigma_sq) - 2.0
+            valor = coeficiente * np.exp(exponente) * termino_log
+
+            mascara[y + radio, x + radio] = valor
+            suma_verificacion += valor
+
+    # Ajuste para que la suma sea 0 (propiedad de derivadas)
+    # Evita falsos bordes en áreas constantes
+    mascara[radio, radio] -= suma_verificacion
+
+    return mascara
+
+
+def aplicar_marr_hildreth(matriz_original: np.ndarray, sigma: float, umbral: float) -> np.ndarray:
+    """
+    Implementa el detector de Marr-Hildreth:
+    1. Genera y aplica la máscara LoG.
+    2. Detecta cruces por cero con evaluación de pendiente.
+    """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
+    # Validaciones de parámetros
+    if sigma <= 0:
+        raise ValueError(f"El valor de sigma ({sigma}) debe ser mayor a 0 para definir la campana de Gauss.")
+
+    if umbral < 0:
+        raise ValueError(f"El umbral de pendiente ({umbral}) no puede ser negativo.")
+
+    # Definición de tamaño para detección de cruces (4*sigma + 1)
+    tamano_mascara = int(4 * sigma + 1)
+
+    if tamano_mascara % 2 == 0:
+        raise ValueError(f"El desvío (sigma={sigma}) debe generar una máscara de tamaño impar.")
+
+    # Generación de máscara basada en sigma
+    mascara_log = _generar_mascara_log(sigma, tamano_mascara)
+
+    # La convolución de LoG devuelve floats con signo
+    imagen_log_cruda = _aplicar_convolucion_manual(matriz_original, mascara_log)
+
+    # Detección final
+    return _detectar_cruces_por_cero(imagen_log_cruda, umbral)
+
+
+# --- DIFUSIÓN ISOTRÓPICA ---
+
+
+def aplicar_difusion_isotropica(matriz_original: np.ndarray, t: float) -> np.ndarray:
+    """
+    Resuelve la ecuación del calor mediante suavizado Gaussiano.
+    A mayor t, menor resolución y mayor eliminación de ruido.
+    """
+    # Se reutiliza la implementación del TP 1
+    return aplicar_filtro_gaussiano(matriz_original, sigma=t)
+
+
+# --- DIFUSIÓN ANISOTRÓPICA ---
+
+
+def aplicar_difusion_anisotropica(
+    matriz_original: np.ndarray, iteraciones: int, sigma: float, lambda_paso: float = 0.25, metodo: str = "leclerc"
+) -> np.ndarray:
+    """
+    Aplica la ecuación de Perona-Malik para suavizar regiones uniformes
+    preservando bordes mediante coeficientes de conducción variables.
+    """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
+    # λ debe estar entre 0 y 1. Se sugiere 0.25 para estabilidad.
+    if not (0 <= lambda_paso <= 1):
+        raise ValueError("El parámetro lambda debe estar en el rango [0, 1].")
+
+    img = matriz_original.astype(np.float32)
+    alto, ancho = img.shape[:2]
+
+    for _ in range(iteraciones):
+        nueva_img = np.copy(img)
+        canales = 3 if img.ndim == 3 else 1
+
+        for c in range(canales):
+            capa = img[:, :, c] if canales == 3 else img
+            nueva_capa = np.copy(capa)
+
+            # Procesamiento manual píxel a píxel (evitando bordes físicos)
+            for y in range(1, alto - 1):
+                for x in range(1, ancho - 1):
+                    # 1. Variaciones (Diferencias finitas)
+                    dn = capa[y + 1, x] - capa[y, x]
+                    ds = capa[y - 1, x] - capa[y, x]
+                    de = capa[y, x - 1] - capa[y, x]
+                    do = capa[y, x + 1] - capa[y, x]
+
+                    # 2. Coeficientes de conducción g(D)
+                    if metodo.lower() == "leclerc":
+                        cn = np.exp(-((dn / sigma) ** 2))
+                        cs = np.exp(-((ds / sigma) ** 2))
+                        ce = np.exp(-((de / sigma) ** 2))
+                        co = np.exp(-((do / sigma) ** 2))
+                    else:  # Lorentz
+                        cn = 1.0 / (1.0 + (dn / sigma) ** 2)
+                        cs = 1.0 / (1.0 + (ds / sigma) ** 2)
+                        ce = 1.0 / (1.0 + (de / sigma) ** 2)
+                        co = 1.0 / (1.0 + (do / sigma) ** 2)
+
+                    # 3. Actualización: I(t+1) = I(t) + λ * Σ(Di * ci)
+                    variacion_total = (dn * cn) + (ds * cs) + (de * ce) + (do * co)
+                    nueva_capa[y, x] += lambda_paso * variacion_total
+
+            if canales == 3:
+                nueva_img[:, :, c] = nueva_capa
+            else:
+                nueva_img = nueva_capa
+        img = nueva_img
+
+    return np.clip(img, 0, 255).astype(np.uint8)
+
+
+# --- FILTRO BILATERAL ---
+
+
+def aplicar_filtro_bilateral(
+    matriz_original: np.ndarray, tamano_mascara: int, sigma_s: float, sigma_r: float
+) -> np.ndarray:
+    """
+    Aplica el filtro bilateral para suavizado con preservación de bordes.
+    Utiliza un kernel espacial (sigma_s) y un kernel de rango (sigma_r).
+    """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
+    alto, ancho = matriz_original.shape[:2]
+    offset = tamano_mascara // 2
+    resultado = np.zeros_like(matriz_original, dtype=np.float32)
+    matriz_float = matriz_original.astype(np.float32)
+
+    # Pre-cálculo del kernel espacial (no depende de la intensidad)
+    kernel_espacial = np.zeros((tamano_mascara, tamano_mascara), dtype=np.float32)
+    for my in range(-offset, offset + 1):
+        for mx in range(-offset, offset + 1):
+            distancia_sq = float(mx**2 + my**2)
+            kernel_espacial[my + offset, mx + offset] = np.exp(-distancia_sq / (2 * sigma_s**2))
+
+    # Recorrido de la imagen
+    for y in range(offset, alto - offset):
+        for x in range(offset, ancho - offset):
+            if matriz_original.ndim == 3:  # Caso RGB
+                for canal in range(3):
+                    w_x = 0.0
+                    acumulado = 0.0
+                    valor_central = matriz_float[y, x, canal]
+
+                    for my in range(-offset, offset + 1):
+                        for mx in range(-offset, offset + 1):
+                            valor_vecino = matriz_float[y + my, x + mx, canal]
+
+                            # Kernel de rango: similitud de intensidad
+                            diff_intensidad_sq = (valor_central - valor_vecino) ** 2
+                            g_r = np.exp(-diff_intensidad_sq / (2 * sigma_r**2))
+
+                            # Peso total = Gs * Gr
+                            peso = kernel_espacial[my + offset, mx + offset] * g_r
+                            acumulado += valor_vecino * peso
+                            w_x += peso
+
+                    resultado[y, x, canal] = acumulado / w_x if w_x > 0 else valor_central
+
+            else:  # Caso Gris
+                w_x = 0.0
+                acumulado = 0.0
+                valor_central = matriz_float[y, x]
+
+                for my in range(-offset, offset + 1):
+                    for mx in range(-offset, offset + 1):
+                        valor_vecino = matriz_float[y + my, x + mx]
+
+                        diff_intensidad_sq = (valor_central - valor_vecino) ** 2
+                        g_r = np.exp(-diff_intensidad_sq / (2 * sigma_r**2))
+
+                        peso = kernel_espacial[my + offset, mx + offset] * g_r
+                        acumulado += valor_vecino * peso
+                        w_x += peso
+
+                resultado[y, x] = acumulado / w_x if w_x > 0 else valor_central
+
+    return np.clip(resultado, 0, 255).astype(np.uint8)
+
+
+# --- UMBRALIZACIÓN ÓPTIMA ITERATIVA ---
+
+
+def _obtener_umbral_iterativo(matriz_original: np.ndarray, delta_t: float = 0.5) -> float:
+    """
+    Calcula el umbral óptimo de forma iterativa basándose en la media de
+    intensidades del objeto y el fondo.
+    """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
+    # Si es RGB, trabajamos con la intensidad promedio (escala de grises)
+    if matriz_original.ndim == 3:
+        img = np.mean(matriz_original.astype(float), axis=2)
+    else:
+        img = matriz_original.astype(float)
+
+    alto, ancho = img.shape
+
+    # Umbral inicial (Media global de la imagen)
+    t_actual = np.mean(img)
+    convergencia = False
+
+    while not convergencia:
+        suma_g1 = 0.0
+        cont_g1 = 0
+        suma_g2 = 0.0
+        cont_g2 = 0
+
+        # Clasificación y cálculo manual de sumas para medias
+        for y in range(alto):
+            for x in range(ancho):
+                valor = img[y, x]
+                if valor > t_actual:  # Grupo G1
+                    suma_g1 += valor
+                    cont_g1 += 1
+                else:  # Grupo G2
+                    suma_g2 += valor
+                    cont_g2 += 1
+
+        # Calcular medias m1 y m2
+        m1 = suma_g1 / cont_g1 if cont_g1 > 0 else 0
+        m2 = suma_g2 / cont_g2 if cont_g2 > 0 else 0
+
+        # Nuevo umbral
+        t_nuevo = 0.5 * (m1 + m2)
+
+        # Verificar delta_t
+        if abs(t_nuevo - t_actual) < delta_t:
+            convergencia = True
+
+        t_actual = t_nuevo
+
+    return t_actual
+
+
+def aplicar_umbralizacion_automatica(matriz_original: np.ndarray, delta_t: float = 0.5) -> np.ndarray:
+    """
+    Punto de entrada que estima el umbral y aplica la binarización.
+    """
+    umbral_optimo = _obtener_umbral_iterativo(matriz_original, delta_t)
+    return obtener_umbralizacion(matriz_original, int(umbral_optimo))
+
+
+# --- UMBRALIZACIÓN DE OTSU ---
+
+
+def _obtener_umbral_otsu(matriz_original: np.ndarray) -> int:
+    """
+    Calcula el umbral óptimo utilizando el método de Otsu, maximizando
+    la varianza entre clases (objetivo y fondo).
+    """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
+    # Computar histograma normalizado pi
+    p = obtener_histograma_gris(matriz_original)
+    L = 256
+
+    # Computar sumas acumuladas P1(t)
+    P1 = np.zeros(L, dtype=float)
+    acumulado_p = 0.0
+    for t in range(L):
+        acumulado_p += p[t]
+        P1[t] = acumulado_p
+
+    # Computar promedios ponderados acumulados m(t)
+    m = np.zeros(L, dtype=float)
+    acumulado_m = 0.0
+    for t in range(L):
+        acumulado_m += t * p[t]
+        m[t] = acumulado_m
+
+    # Promedio ponderado global mG (es el último valor de m)
+    mG = m[L - 1]
+
+    # Computar varianza entre clases sigma_B^2(t)
+    sigma_B_sq = np.zeros(L, dtype=float)
+
+    for t in range(L):
+        denominador = P1[t] * (1.0 - P1[t])
+
+        # Evitar división por cero si una clase está vacía
+        if denominador > 0:
+            numerador = (mG * P1[t] - m[t]) ** 2
+            sigma_B_sq[t] = numerador / denominador
+        else:
+            sigma_B_sq[t] = 0
+
+    # Maximizar la varianza para hallar t*
+    umbral_optimo = 0
+    varianza_maxima = -1.0
+
+    for t in range(L):
+        if sigma_B_sq[t] > varianza_maxima:
+            varianza_maxima = sigma_B_sq[t]
+            umbral_optimo = t
+
+    return umbral_optimo
+
+
+def aplicar_umbralizacion_otsu(matriz_original: np.ndarray) -> np.ndarray:
+    """
+    Segmenta la imagen utilizando el umbral calculado por el método de Otsu.
+    """
+    t_estrella = _obtener_umbral_otsu(matriz_original)
+    return obtener_umbralizacion(matriz_original, t_estrella)
+
+
+# --- SEGMENTACIÓN DE IMÁGENES RGB MEDIANTE UMBRALIZACIÓN POR BANDAS ---
+
+
+def segmentar_color_por_bandas(matriz_original: np.ndarray) -> np.ndarray:
+    """
+    Segmenta una imagen RGB en 8 regiones de color aplicando el umbral
+    óptimo de Otsu de forma independiente a cada banda (R, G, B).
+    """
+    if not _es_imagen_valida(matriz_original) or matriz_original.ndim != 3:
+        raise ValueError("Se requiere una imagen en color (RGB) para este método.")
+
+    alto, ancho = matriz_original.shape[:2]
+    resultado = np.zeros((alto, ancho, 3), dtype=np.uint8)
+
+    # Procesamiento independiente por canal
+    for canal in range(3):
+        banda = matriz_original[:, :, canal]
+
+        # Hallar umbral óptimo para la banda actual mediante Otsu
+        t_opt = _obtener_umbral_otsu(banda)
+
+        # Binarización manual de la banda
+        for y in range(alto):
+            for x in range(ancho):
+                if banda[y, x] >= t_opt:
+                    resultado[y, x, canal] = 255
+                else:
+                    resultado[y, x, canal] = 0
+
+    return resultado

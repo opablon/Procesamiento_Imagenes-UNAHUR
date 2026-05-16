@@ -110,6 +110,15 @@ Para cumplir con los objetivos pedagógicos de la UNAHUR, este software se rige 
 * **Filtros Espaciales (Convolución Manual):** Implementación de ventana deslizante para filtros de la Media, Mediana, Mediana Ponderada, Gaussiano y Realce de Bordes. La convolución se realiza de forma manual para cumplir con los objetivos pedagógicos de la asignatura.
 * **Actualización de Interfaz:** La GUI fue escalada para soportar arquitectura multiventana simultánea, permitiendo la comparación directa entre la imagen original, la imagen con ruido y la imagen filtrada, junto con sus respectivos histogramas dinámicos.
 
+### [x] TP2: Detección de Bordes, Difusión y Umbralización Óptima
+* **Detección de Bordes (1ra Derivada):** Implementación manual de los operadores espaciales de Prewitt y Sobel.
+* **Detección de Bordes (2da Derivada):** Máscaras Laplacianas con métodos de detección de cruce por cero (con y sin evaluación de umbral de pendiente) y Laplaciano del Gaussiano (Algoritmo de Marr-Hildreth / LoG).
+* **Suavizado y Preservación de Bordes:** 
+  * Difusión Isotrópica (resolución de la ecuación del calor en el tiempo).
+  * Difusión Anisotrópica (ecuación de Perona-Malik) con selección dinámica de la función de conducción (*Leclerc* o *Lorentz*).
+  * Filtro Bilateral combinando filtros espaciales y de rango (intensidad).
+* **Segmentación y Umbralización Óptima:** Algoritmo de umbralización óptima global e iterativa (Isodata), método de Otsu (basado en la maximización de la varianza inter-clase mediante sumas acumuladas de histograma normalizado), y segmentación avanzada de imágenes color operando por canales RGB.
+
 ---
 
 ## 🤖 Integración Continua (CI/CD)

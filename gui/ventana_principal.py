@@ -517,7 +517,7 @@ class AppProcesamiento:
         iters = pedir_entero("Iteraciones", "Cantidad de iteraciones (ej: 10):", minvalue=1)
         if iters is None:
             return
-        sigma = pedir_float("Sigma", "Parámetro kappa/sigma (ej: 10.0):", minvalue=0.1)
+        sigma = pedir_float("Sigma", "Parámetro sigma (ej: 10.0):", minvalue=0.1)
         if sigma is None:
             return
         metodo = pedir_opcion("Método", "Seleccione función de conducción:", ["Leclerc", "Lorentz"])

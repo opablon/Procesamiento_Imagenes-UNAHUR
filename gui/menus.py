@@ -82,7 +82,7 @@ class GestorMenus:
                 "Filtro Bilateral",
                 "Umbralización Óptima Iter.",
                 "Umbralización Otsu",
-                "Segmentación Color (Otsu)",
+                "Segmentación Color (Bandas)",
             ],
             command=self._handler_tp2,
             variable=self.var_tp2,

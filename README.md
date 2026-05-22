@@ -113,11 +113,11 @@ Para cumplir con los objetivos pedagógicos de la UNAHUR, este software se rige 
 ### [x] TP2: Detección de Bordes, Difusión y Umbralización Óptima
 * **Detección de Bordes (1ra Derivada):** Implementación manual de los operadores espaciales de Prewitt y Sobel.
 * **Detección de Bordes (2da Derivada):** Máscaras Laplacianas con métodos de detección de cruce por cero (con y sin evaluación de umbral de pendiente) y Laplaciano del Gaussiano (Algoritmo de Marr-Hildreth / LoG).
-* **Suavizado y Preservación de Bordes:** 
-  * Difusión Isotrópica (resolución de la ecuación del calor en el tiempo).
-  * Difusión Anisotrópica (ecuación de Perona-Malik) con selección dinámica de la función de conducción (*Leclerc* o *Lorentz*).
-  * Filtro Bilateral combinando filtros espaciales y de rango (intensidad).
-* **Segmentación y Umbralización Óptima:** Algoritmo de umbralización óptima global e iterativa (Isodata), método de Otsu (basado en la maximización de la varianza inter-clase mediante sumas acumuladas de histograma normalizado), y segmentación avanzada de imágenes color operando por canales RGB.
+* **Suavizado y Preservación de Bordes:**
+  * Difusión Isotrópica (resolución de la ecuación del calor mediante diferencias finitas iterativas).
+  * Difusión Anisotrópica (conducción de Perona-Malik) con selección de la función de conducción (*Leclerc* o *Lorentz*).
+  * Filtro Bilateral (suavizado con preservación de bordes combinando vecindad espacial y rango de intensidad) con dimensionamiento automático de máscara basado en $\sigma_s$.
+* **Segmentación y Umbralización Óptima:** Algoritmo de umbralización óptima global e iterativa (Isodata), método de Otsu (maximización de la varianza entre clases mediante sumas acumuladas de histograma normalizado), y segmentación de color por bandas (binarización mediante Otsu aplicada de manera independiente a cada canal R, G y B).
 
 ---
 

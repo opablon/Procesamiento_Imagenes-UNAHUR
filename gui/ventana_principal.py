@@ -107,7 +107,7 @@ def feedback_visual(func):
 
 
 class AppProcesamiento:
-    instancias = []
+    instancias: list["AppProcesamiento"] = []
 
     def __init__(
         self, root: tk.Tk | ctk.CTk | ctk.CTkToplevel, matriz: Optional[np.ndarray] = None, titulo: Optional[str] = None

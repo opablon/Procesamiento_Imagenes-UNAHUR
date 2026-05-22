@@ -175,7 +175,7 @@ class GestorMenus:
             self.app.umbral_iterativa()
         elif eleccion == "Umbralización Otsu":
             self.app.umbral_otsu()
-        elif eleccion == "Segmentación Color (Otsu)":
+        elif eleccion == "Segmentación Color (Bandas)":
             self.app.segmentacion_bandas()
 
     def cambiar_estado(self, estado: str) -> None:

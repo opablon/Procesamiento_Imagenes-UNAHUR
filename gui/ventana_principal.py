@@ -509,9 +509,9 @@ class AppProcesamiento:
             self._ejecutar_operacion_core(funciones.aplicar_marr_hildreth, "marr_h", sigma, umbral)
 
     def difusion_isotropica(self) -> None:
-        t = pedir_float("Tiempo (t)", "Parámetro t (equivalente a sigma > 0):", minvalue=0.1)
-        if t is not None:
-            self._ejecutar_operacion_core(funciones.aplicar_difusion_isotropica, "dif_iso", t)
+        iters = pedir_entero("Iteraciones", "Cantidad de iteraciones (ej: 10):", minvalue=1)
+        if iters is not None:
+            self._ejecutar_operacion_core(funciones.aplicar_difusion_isotropica, "dif_iso", iters)
 
     def difusion_anisotropica(self) -> None:
         iters = pedir_entero("Iteraciones", "Cantidad de iteraciones (ej: 10):", minvalue=1)
@@ -528,18 +528,12 @@ class AppProcesamiento:
             )
 
     def filtro_bilateral(self) -> None:
-        tamano = pedir_entero("Tamaño", "Tamaño de la máscara (impar, ej: 5):", minvalue=3)
-        if tamano is None:
-            return
-        if tamano % 2 == 0:
-            messagebox.showerror("Error", "El tamaño de la máscara debe ser impar.")
-            return
         sigma_s = pedir_float("Sigma S", "Sigma Espacial (ej: 2.0):", minvalue=0.1)
         if sigma_s is None:
             return
         sigma_r = pedir_float("Sigma R", "Sigma Rango (ej: 10.0):", minvalue=0.1)
         if sigma_r is not None:
-            self._ejecutar_operacion_core(funciones.aplicar_filtro_bilateral, "bilateral", tamano, sigma_s, sigma_r)
+            self._ejecutar_operacion_core(funciones.aplicar_filtro_bilateral, "bilateral", sigma_s, sigma_r)
 
     def umbral_iterativa(self) -> None:
         dt = pedir_float("Delta T", "Criterio de convergencia delta_t (ej: 0.5):", minvalue=0.01)

@@ -579,24 +579,29 @@ def _aplicar_convolucion_manual(matriz: np.ndarray, mascara: np.ndarray) -> np.n
     offset = tamano // 2
     alto, ancho = matriz.shape[:2]
 
-    matriz_f = matriz.astype(np.float32)
-    resultado = np.copy(matriz_f)
+    matriz_float = matriz.astype(np.float32)
+    resultado = np.copy(matriz_float)
 
     for y in range(offset, alto - offset):
         for x in range(offset, ancho - offset):
+
             if matriz.ndim == 3:  # Caso RGB
                 for c in range(3):
-                    acum = 0.0
-                    for my in range(-offset, offset + 1):
-                        for mx in range(-offset, offset + 1):
-                            acum += matriz_f[y + my, x + mx, c] * mascara[my + offset, mx + offset]
-                    resultado[y, x, c] = acum
+                    acumulado = 0.0
+                    for mascara_y in range(-offset, offset + 1):
+                        for mascara_x in range(-offset, offset + 1):
+                            val_pixel = matriz_float[y + mascara_y, x + mascara_x, c]
+                            peso = mascara[mascara_y + offset, mascara_x + offset]
+                            acumulado += val_pixel * peso
+                    resultado[y, x, c] = acumulado
             else:  # Caso Gris
-                acum = 0.0
-                for my in range(-offset, offset + 1):
-                    for mx in range(-offset, offset + 1):
-                        acum += matriz_f[y + my, x + mx] * mascara[my + offset, mx + offset]
-                resultado[y, x] = acum
+                acumulado = 0.0
+                for mascara_y in range(-offset, offset + 1):
+                    for mascara_x in range(-offset, offset + 1):
+                        val_pixel = matriz_float[y + mascara_y, x + mascara_x]
+                        peso = mascara[mascara_y + offset, mascara_x + offset]
+                        acumulado += val_pixel * peso
+                resultado[y, x] = acumulado
     return resultado
 
 
@@ -659,7 +664,7 @@ def aplicar_filtro_mediana(matriz_original: np.ndarray, tamano_mascara: int) -> 
 # --- GENERA LA MASCARA PARA EL FILTRO DE LA MEDIANA PONDERADA ---
 
 
-def generar_pesos_mediana_ponderada(tamano_mascara: int) -> np.ndarray:
+def _generar_pesos_mediana_ponderada(tamano_mascara: int) -> np.ndarray:
     """
     Genera una matriz de pesos enteros basada en una aproximación discreta
     de la campana de Gauss utilizando coeficientes binomiales.
@@ -700,7 +705,7 @@ def aplicar_filtro_mediana_ponderada(matriz_original: np.ndarray, tamano_mascara
     matriz_filtrada = matriz_original.copy()
 
     # Generación dinámica de la máscara de pesos (Aproximación Gaussiana/Binomial)
-    mascara_pesos = generar_pesos_mediana_ponderada(tamano_mascara)
+    mascara_pesos = _generar_pesos_mediana_ponderada(tamano_mascara)
 
     # Recorrido de la imagen evitando los bordes
     for y in range(offset, alto - offset):
@@ -710,33 +715,33 @@ def aplicar_filtro_mediana_ponderada(matriz_original: np.ndarray, tamano_mascara
 
             if matriz_original.ndim == 2:
                 # Caso niveles de gris
-                valores_expandidos = []
+                valores_ponderados = []
                 for i in range(tamano_mascara):
                     for j in range(tamano_mascara):
                         # Expansión manual: se repite el valor del píxel según indica su peso
                         peso = mascara_pesos[i, j]
                         valor_pixel = vecindad[i, j]
-                        valores_expandidos.extend([valor_pixel] * peso)
+                        valores_ponderados.extend([valor_pixel] * peso)
 
                 # Ordenamiento manual y selección del valor central (mediana ponderada)
-                valores_expandidos.sort()
-                indice_central = len(valores_expandidos) // 2
-                matriz_filtrada[y, x] = valores_expandidos[indice_central]
+                valores_ponderados.sort()
+                indice_central = len(valores_ponderados) // 2
+                matriz_filtrada[y, x] = valores_ponderados[indice_central]
 
             else:
                 # Caso RGB: Procesar cada canal por separado
                 for canal in range(3):
-                    valores_expandidos = []
+                    valores_ponderados = []
                     for i in range(tamano_mascara):
                         for j in range(tamano_mascara):
                             peso = mascara_pesos[i, j]
                             valor_pixel = vecindad[i, j, canal]
-                            valores_expandidos.extend([valor_pixel] * peso)
+                            valores_ponderados.extend([valor_pixel] * peso)
 
                     # Ordenamiento y selección de mediana por canal
-                    valores_expandidos.sort()
-                    indice_central = len(valores_expandidos) // 2
-                    matriz_filtrada[y, x, canal] = valores_expandidos[indice_central]
+                    valores_ponderados.sort()
+                    indice_central = len(valores_ponderados) // 2
+                    matriz_filtrada[y, x, canal] = valores_ponderados[indice_central]
 
     return matriz_filtrada
 
@@ -872,22 +877,33 @@ def aplicar_operador_prewitt(matriz_original: np.ndarray) -> np.ndarray:
         raise ValueError("Imagen no soportada.")
 
     # Máscaras de Prewitt
-    mx = np.array([[-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0]], dtype=float)
+    mascara_x = np.array([[-1.0, 0.0, 1.0],
+                   [-1.0, 0.0, 1.0],
+                   [-1.0, 0.0, 1.0]], dtype=float)
 
-    my = np.array([[-1.0, -1.0, -1.0], [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], dtype=float)
+    mascara_y = np.array([[-1.0, -1.0, -1.0],
+                   [ 0.0,  0.0,  0.0],
+                   [ 1.0,  1.0,  1.0]], dtype=float)
 
-    # Convolución manual
-    ix = _aplicar_convolucion_manual(matriz_original, mx)
-    iy = _aplicar_convolucion_manual(matriz_original, my)
+    # Si es escala de grises (2D)
+    if matriz_original.ndim == 2:
+        g_x = _aplicar_convolucion_manual(matriz_original.astype(np.float64), mascara_x)
+        g_y = _aplicar_convolucion_manual(matriz_original.astype(np.float64), mascara_y)
+        magnitud = np.sqrt(g_x**2 + g_y**2)
+        return _escalar_a_8bit(magnitud)
 
-    # Magnitud del gradiente: sqrt(Ix^2 + Iy^2)
-    resultado = np.sqrt(ix**2 + iy**2)
+    # Si es color (3D): procesar canal por canal
+    else:
+        alto, ancho, canales = matriz_original.shape
+        borde_color = np.zeros((alto, ancho, canales), dtype=np.float64)
 
-    # Colapsar a escala de grises conservando el borde más fuerte
-    if resultado.ndim == 3:
-        resultado = np.max(resultado, axis=2)
+        for c in range(canales):
+            canal = matriz_original[:, :, c].astype(np.float64)
+            g_x = _aplicar_convolucion_manual(canal, mascara_x)
+            g_y = _aplicar_convolucion_manual(canal, mascara_y)
+            borde_color[:, :, c] = np.sqrt(g_x**2 + g_y**2)
 
-    return np.clip(resultado, 0, 255).astype(np.uint8)
+        return _escalar_a_8bit(borde_color)
 
 
 # --- SOBEL ---
@@ -901,94 +917,119 @@ def aplicar_operador_sobel(matriz_original: np.ndarray) -> np.ndarray:
         raise ValueError("Imagen no soportada.")
 
     # Máscaras de Sobel
-    mx = np.array([[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]], dtype=float)
+    mascara_x = np.array([[-1.0, 0.0, 1.0],
+                   [-2.0, 0.0, 2.0],
+                   [-1.0, 0.0, 1.0]], dtype=float)
 
-    my = np.array([[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]], dtype=float)
+    mascara_y = np.array([[-1.0, -2.0, -1.0],
+                   [ 0.0,  0.0,  0.0],
+                   [ 1.0,  2.0,  1.0]], dtype=float)
 
-    # Convolución manual
-    ix = _aplicar_convolucion_manual(matriz_original, mx)
-    iy = _aplicar_convolucion_manual(matriz_original, my)
+    # Si es escala de grises (2D)
+    if matriz_original.ndim == 2:
+        g_x = _aplicar_convolucion_manual(matriz_original.astype(np.float64), mascara_x)
+        g_y = _aplicar_convolucion_manual(matriz_original.astype(np.float64), mascara_y)
+        magnitud = np.sqrt(g_x**2 + g_y**2)
+        return _escalar_a_8bit(magnitud)
 
-    # Magnitud del gradiente
-    resultado = np.sqrt(ix**2 + iy**2)
+    # Si es color (3D): procesar canal por canal
+    else:
+        alto, ancho, canales = matriz_original.shape
+        borde_color = np.zeros((alto, ancho, canales), dtype=np.float64)
 
-    # Colapsar a escala de grises conservando el borde más fuerte
-    if resultado.ndim == 3:
-        resultado = np.max(resultado, axis=2)
+        for c in range(canales):
+            canal = matriz_original[:, :, c].astype(np.float64)
+            g_x = _aplicar_convolucion_manual(canal, mascara_x)
+            g_y = _aplicar_convolucion_manual(canal, mascara_y)
+            borde_color[:, :, c] = np.sqrt(g_x**2 + g_y**2)
 
-    return np.clip(resultado, 0, 255).astype(np.uint8)
+        return _escalar_a_8bit(borde_color)
 
 
 # --- LAPLACIANO ---
 
 
-def _calcular_laplaciano_crudo(matriz_original: np.ndarray) -> np.ndarray:
+def _obtener_mascara_laplaciana(matriz_original: np.ndarray) -> np.ndarray:
     """
-    Realiza la convolución y devuelve los floats con signo.
+    Aplica el operador de Laplace mediante una máscara de 3x3 de 4-vecinos.
+    Retorna la matriz con valores flotantes (con signo) para evaluar cruces por cero.
     """
-    laplaciana_3x3 = np.array([[0.0, -1.0, 0.0], [-1.0, 4.0, -1.0], [0.0, -1.0, 0.0]], dtype=float)
+    # Máscara de Laplace: 4*I(x,y) - I(vecinos)
+    laplaciana_3x3 = np.array([[ 0.0, -1.0,  0.0],
+                               [-1.0,  4.0, -1.0],
+                               [ 0.0, -1.0,  0.0]], dtype=float)
 
     return _aplicar_convolucion_manual(matriz_original, laplaciana_3x3)
 
 
-def aplicar_mascara_laplaciana(matriz_original: np.ndarray) -> np.ndarray:
-    """
-    Aplica la convolución con la máscara Laplaciana de 4-vecinos.
-    Sigue la aproximación: ΔI(x,y) = 4*I(x,y) - I(x-1,y) - I(x+1,y) - I(x,y-1) - I(x,y+1).
-    """
-    if not _es_imagen_valida(matriz_original):
-        raise ValueError("Imagen no soportada.")
-
-    crudo = _calcular_laplaciano_crudo(matriz_original)
-    escalado = _escalar_a_8bit(crudo)
-
-    # Colapsar a escala de grises conservando el borde más fuerte
-    if escalado.ndim == 3:
-        return np.max(escalado, axis=2)
-
-    return escalado
-
-
-# --- EVALUACIÓN DE PENDIENTE ---
+# --- DETECTAR CRUCES POR CERO ---
 
 
 def _detectar_cruces_por_cero(matriz_flotante: np.ndarray, umbral: float) -> np.ndarray:
     """
-    Identifica cruces por cero sobre una matriz de un solo canal (gris).
+    Detecta cruces por cero horizontales y verticales.
+    Marca un borde (255) si el cambio de signo supera el umbral dado.
     """
     alto, ancho = matriz_flotante.shape[:2]
-    resultado_final = np.zeros((alto, ancho), dtype=np.uint8)
+    resultado = np.zeros((alto, ancho), dtype=np.uint8)
+    canales = 3 if matriz_flotante.ndim == 3 else 1
 
-    if matriz_flotante.ndim == 3:
+    for c in range(canales):
+        matriz_laplaciana = matriz_flotante[:, :, c] if canales == 3 else matriz_flotante
+
         for y in range(alto - 1):
             for x in range(ancho - 1):
-                for canal in range(3):
-                    val_actual = matriz_flotante[y, x, canal]
-                    val_derecha = matriz_flotante[y, x + 1, canal]
-                    val_abajo = matriz_flotante[y + 1, x, canal]
+                pixel_actual = matriz_laplaciana[y, x]
 
-                    # Cambio horizontal
-                    if (val_actual * val_derecha) < 0 and np.abs(val_actual - val_derecha) >= umbral:
-                        resultado_final[y, x] = 255
-                        break  # Borde detectado, pasar al siguiente píxel
+                # --- EVALUACIÓN HORIZONTAL ---
+                pixel_derecho = matriz_laplaciana[y, x + 1]
 
-                    # Cambio vertical
-                    if (val_actual * val_abajo) < 0 and np.abs(val_actual - val_abajo) >= umbral:
-                        resultado_final[y, x] = 255
-                        break
-    else:
-        for y in range(alto - 1):
-            for x in range(ancho - 1):
-                val_actual = matriz_flotante[y, x]
-                val_derecha = matriz_flotante[y, x + 1]
-                val_abajo = matriz_flotante[y + 1, x]
+                # Caso 1: Cambio de signo directo (+,-) o (-,+)
+                if (pixel_actual * pixel_derecho) < 0:
 
-                if (val_actual * val_derecha) < 0 and np.abs(val_actual - val_derecha) >= umbral:
-                    resultado_final[y, x] = 255
-                elif (val_actual * val_abajo) < 0 and np.abs(val_actual - val_abajo) >= umbral:
-                    resultado_final[y, x] = 255
+                    # Se calcula la pendiente (|a+b|) y se compara con el umbral
+                    if abs(pixel_actual - pixel_derecho) >= umbral:
+                        resultado[y, x] = 255
 
-    return resultado_final
+                # Caso 2: Cero intermedio (+,0,-) o (-,0,+)
+                elif pixel_derecho == 0 and x + 2 < ancho:
+                    pixel_derecho_2 = matriz_laplaciana[y, x + 2] # Evaluamos el pixel que sigue al cero
+                    if (pixel_actual * pixel_derecho_2) < 0:
+                        if abs(pixel_actual - pixel_derecho_2) >= umbral:
+                            resultado[y, x] = 255
+
+                # --- EVALUACIÓN VERTICAL ---
+                pixel_abajo = matriz_laplaciana[y + 1, x]
+
+                # Caso 1: Cambio de signo directo
+                if (pixel_actual * pixel_abajo) < 0:
+                    if abs(pixel_actual - pixel_abajo) >= umbral:
+                        resultado[y, x] = 255
+
+                # Caso 2: Cero intermedio
+                elif pixel_abajo == 0 and y + 2 < alto:
+                    pixel_abajo_2 = matriz_laplaciana[y + 2, x]
+                    if (pixel_actual * pixel_abajo_2) < 0:
+                        if abs(pixel_actual - pixel_abajo_2) >= umbral:
+                            resultado[y, x] = 255
+
+    return resultado
+
+
+# --- MÉTODO DEL LAPLACIANO ---
+
+def aplicar_mascara_laplaciana(matriz_original: np.ndarray) -> np.ndarray:
+    """
+    Implementa el Método del Laplaciano clásico (sin filtro de umbral).
+    """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
+    # Aplicar máscara de Laplace para obtener la segunda derivada
+    crudo = _obtener_mascara_laplaciana(matriz_original)
+
+    # Detectar cualquier cruce por cero (umbral = 0)
+    return _detectar_cruces_por_cero(crudo, umbral=0.0)
 
 
 # --- LAPLACIANO CON PENDIENTE ---
@@ -996,17 +1037,19 @@ def _detectar_cruces_por_cero(matriz_flotante: np.ndarray, umbral: float) -> np.
 
 def aplicar_laplaciano_con_pendiente(matriz_original: np.ndarray, umbral: float) -> np.ndarray:
     """
-    Usa el cálculo crudo para encontrar los cruces por cero y devuelve una imagen binaria.
+    Implementa el Método del Laplaciano evaluando la magnitud de la pendiente.
     """
     if not _es_imagen_valida(matriz_original):
         raise ValueError("Imagen no soportada.")
 
-    crudo = _calcular_laplaciano_crudo(matriz_original)
+    # Aplicar máscara de Laplace
+    crudo = _obtener_mascara_laplaciana(matriz_original)
 
-    return _detectar_cruces_por_cero(crudo, umbral)
+    # Filtrar bordes reales: solo cruces cuya pendiente supere 'umbral'
+    return _detectar_cruces_por_cero(crudo, umbral=umbral)
 
 
-# --- LAPLACIANO GAUSSIANO (MARR-HILDRETH) ---
+# --- MASCARA LOG ---
 
 
 def _generar_mascara_log(sigma: float, tamano_mascara: int) -> np.ndarray:
@@ -1016,37 +1059,46 @@ def _generar_mascara_log(sigma: float, tamano_mascara: int) -> np.ndarray:
     radio = tamano_mascara // 2
     mascara = np.zeros((tamano_mascara, tamano_mascara), dtype=float)
 
-    # Pre-cálculo de constantes para optimizar el bucle manual
-    sigma_sq = sigma**2
-    sigma_cub = sigma**3
-    coeficiente = 1.0 / (2.0 * np.pi * sigma_cub)
+    # Optimizaciones de la constante
+    sigma_al_cuadrado = sigma ** 2
+    sigma_al_cubo = sigma ** 3
+    coeficiente = 1.0 / (2.0 * np.pi * sigma_al_cubo)
 
-    suma_verificacion = 0.0
+    # Variable para acumular la suma de todos los coeficientes calculados.
+    # Necesaria para medir el error introducido al truncar la función continua.
+    suma_total = 0.0
 
     for y in range(-radio, radio + 1):
         for x in range(-radio, radio + 1):
             dist_cuadrada = float(x**2 + y**2)
-            exponente = -dist_cuadrada / (2.0 * sigma_sq)
 
-            # Fórmula de Marr-Hildreth
-            termino_log = (dist_cuadrada / sigma_sq) - 2.0
+            # Parte exponencial de la función de Gauss
+            exponente = -dist_cuadrada / (2.0 * sigma_al_cuadrado)
+
+            # Término derivado del Laplaciano
+            termino_log = (dist_cuadrada / sigma_al_cuadrado) - 2.0
+
+            # Valor puntual de la máscara
             valor = coeficiente * np.exp(exponente) * termino_log
-
             mascara[y + radio, x + radio] = valor
-            suma_verificacion += valor
 
-    # Ajuste para que la suma sea 0 (propiedad de derivadas)
-    # Evita falsos bordes en áreas constantes
-    mascara[radio, radio] -= suma_verificacion
+            # Acumulamos el valor calculado
+            suma_total += valor
+
+    # En el dominio continuo, la integral de esta derivada es exactamente 0.
+    # En esta matriz finita, los valores descartados fuera del radio dejan un residuo.
+    # Restar este residuo (suma_total) al píxel central garantiza que la sumatoria
+    # de la matriz sea 0 absoluto, evitando que detecte bordes falsos en áreas de color uniforme.
+    mascara[radio, radio] -= suma_total
 
     return mascara
 
 
+# --- LAPLACIANO GAUSSIANO (MARR-HILDRETH) ---
+
 def aplicar_marr_hildreth(matriz_original: np.ndarray, sigma: float, umbral: float) -> np.ndarray:
     """
-    Implementa el detector de Marr-Hildreth:
-    1. Genera y aplica la máscara LoG.
-    2. Detecta cruces por cero con evaluación de pendiente.
+    Implementa el Detector LoG (Marr-Hildreth) para mitigar el ruido.
     """
     if not _es_imagen_valida(matriz_original):
         raise ValueError("Imagen no soportada.")
@@ -1058,9 +1110,10 @@ def aplicar_marr_hildreth(matriz_original: np.ndarray, sigma: float, umbral: flo
     if umbral < 0:
         raise ValueError(f"El umbral de pendiente ({umbral}) no puede ser negativo.")
 
-    # Definición de tamaño para detección de cruces (4*sigma + 1)
+    # El tamaño de la máscara depende del desvío (4*sigma + 1)
     tamano_mascara = int(4 * sigma + 1)
 
+    # La máscara debe ser impar para tener un centro (x=0, y=0)
     if tamano_mascara % 2 == 0:
         raise ValueError(f"El desvío (sigma={sigma}) debe generar una máscara de tamaño impar.")
 
@@ -1077,31 +1130,25 @@ def aplicar_marr_hildreth(matriz_original: np.ndarray, sigma: float, umbral: flo
 # --- DIFUSIÓN ISOTRÓPICA ---
 
 
-def aplicar_difusion_isotropica(matriz_original: np.ndarray, t: float) -> np.ndarray:
-    """
-    Resuelve la ecuación del calor mediante suavizado Gaussiano.
-    A mayor t, menor resolución y mayor eliminación de ruido.
-    """
-    # Se reutiliza la implementación del TP 1
-    return aplicar_filtro_gaussiano(matriz_original, sigma=t)
-
-
-# --- DIFUSIÓN ANISOTRÓPICA ---
-
-
-def aplicar_difusion_anisotropica(
-    matriz_original: np.ndarray, iteraciones: int, sigma: float, lambda_paso: float = 0.25, metodo: str = "leclerc"
+def aplicar_difusion_isotropica(
+    matriz_original: np.ndarray,
+    iteraciones: int,
+    constante_lambda: float = 0.25
 ) -> np.ndarray:
     """
-    Aplica la ecuación de Perona-Malik para suavizar regiones uniformes
-    preservando bordes mediante coeficientes de conducción variables.
+    Resuelve la ecuación del calor de conducción isotrópica mediante diferencias finitas.
+
+    Esta implementación utiliza la misma estructura
+    iterativa que la difusión anisotrópica (Perona-Malik), pero asume un medio
+    isotrópico donde la conducción es idéntica en todas las direcciones (coeficientes c = 1).
     """
     if not _es_imagen_valida(matriz_original):
         raise ValueError("Imagen no soportada.")
 
-    # λ debe estar entre 0 y 1. Se sugiere 0.25 para estabilidad.
-    if not (0 <= lambda_paso <= 1):
-        raise ValueError("El parámetro lambda debe estar en el rango [0, 1].")
+    # El parámetro de integración lambda (constante_lambda) debe ser <= 0.25
+    # para garantizar la estabilidad numérica en una grilla 2D de 4 vecinos.
+    if not (0 < constante_lambda <= 0.25):
+        raise ValueError("Por estabilidad matemática, constante_lambda debe estar en (0, 0.25].")
 
     img = matriz_original.astype(np.float32)
     alto, ancho = img.shape[:2]
@@ -1114,30 +1161,21 @@ def aplicar_difusion_anisotropica(
             capa = img[:, :, c] if canales == 3 else img
             nueva_capa = np.copy(capa)
 
-            # Procesamiento manual píxel a píxel (evitando bordes físicos)
+            # Recorrido de píxeles internos (omite bordes físicos)
             for y in range(1, alto - 1):
                 for x in range(1, ancho - 1):
-                    # 1. Variaciones (Diferencias finitas)
+                    # Diferencias espaciales hacia los 4 vecinos directos (N, S, E, O)
                     dn = capa[y + 1, x] - capa[y, x]
                     ds = capa[y - 1, x] - capa[y, x]
                     de = capa[y, x - 1] - capa[y, x]
                     do = capa[y, x + 1] - capa[y, x]
 
-                    # 2. Coeficientes de conducción g(D)
-                    if metodo.lower() == "leclerc":
-                        cn = np.exp(-((dn / sigma) ** 2))
-                        cs = np.exp(-((ds / sigma) ** 2))
-                        ce = np.exp(-((de / sigma) ** 2))
-                        co = np.exp(-((do / sigma) ** 2))
-                    else:  # Lorentz
-                        cn = 1.0 / (1.0 + (dn / sigma) ** 2)
-                        cs = 1.0 / (1.0 + (ds / sigma) ** 2)
-                        ce = 1.0 / (1.0 + (de / sigma) ** 2)
-                        co = 1.0 / (1.0 + (do / sigma) ** 2)
+                    # En un medio isotrópico, los coeficientes de conducción son 1.
+                    # Por lo tanto, el flujo total es simplemente la suma de las diferencias.
+                    variacion_total = dn + ds + de + do
 
-                    # 3. Actualización: I(t+1) = I(t) + λ * Σ(Di * ci)
-                    variacion_total = (dn * cn) + (ds * cs) + (de * ce) + (do * co)
-                    nueva_capa[y, x] += lambda_paso * variacion_total
+                    # Actualización de la intensidad: I(t+1) = I(t) + lambda * Variacion
+                    nueva_capa[y, x] += constante_lambda * variacion_total
 
             if canales == 3:
                 nueva_img[:, :, c] = nueva_capa
@@ -1148,21 +1186,113 @@ def aplicar_difusion_anisotropica(
     return np.clip(img, 0, 255).astype(np.uint8)
 
 
-# --- FILTRO BILATERAL ---
+# --- DIFUSIÓN ANISOTRÓPICA ---
 
 
-def aplicar_filtro_bilateral(
-    matriz_original: np.ndarray, tamano_mascara: int, sigma_s: float, sigma_r: float
+def aplicar_difusion_anisotropica(
+    matriz_original: np.ndarray,
+    iteraciones: int,
+    sigma: float,
+    constante_lambda: float = 0.25,
+    metodo: str = 'leclerc'
 ) -> np.ndarray:
     """
-    Aplica el filtro bilateral para suavizado con preservación de bordes.
-    Utiliza un kernel espacial (sigma_s) y un kernel de rango (sigma_r).
+    Aplica la ecuación de difusión anisotrópica de Perona-Malik.
+
+    Suaviza regiones de intensidad uniforme (reduciendo ruido) mientras detiene
+    la difusión en los bordes gracias al cálculo de coeficientes de conducción variables g(D).
+
+    El parámetro sigma actúa como un umbral de contraste: diferencias mayores a sigma
+    detienen la difusión (borde), menores a sigma se suavizan (ruido).
     """
     if not _es_imagen_valida(matriz_original):
         raise ValueError("Imagen no soportada.")
 
-    alto, ancho = matriz_original.shape[:2]
+    # Restricción matemática de la constante de iteración (lambda)
+    if not (0 < constante_lambda <= 0.25):
+        raise ValueError("Por estabilidad matemática, constante_lambda debe estar en (0, 0.25].")
+
+    img = matriz_original.astype(np.float32)
+    alto, ancho = img.shape[:2]
+
+    for _ in range(iteraciones):
+        nueva_img = np.copy(img)
+        canales = 3 if img.ndim == 3 else 1
+
+        for c in range(canales):
+            capa = img[:, :, c] if canales == 3 else img
+            nueva_capa = np.copy(capa)
+
+            for y in range(1, alto - 1):
+                for x in range(1, ancho - 1):
+                    # Cálculo de gradientes locales (Diferencias Finitas D)
+                    dif_norte = capa[y + 1, x] - capa[y, x]
+                    dif_sur = capa[y - 1, x] - capa[y, x]
+                    dif_este = capa[y, x - 1] - capa[y, x]
+                    dif_oeste = capa[y, x + 1] - capa[y, x]
+
+                    # Cálculo de coeficientes de conducción (c)
+                    if metodo.lower() == 'leclerc':
+                        # Función Exponencial: Privilegia bordes de alto contraste
+                        coef_norte = np.exp(-(dif_norte / sigma)**2)
+                        coef_sur = np.exp(-(dif_sur / sigma)**2)
+                        coef_este = np.exp(-(dif_este / sigma)**2)
+                        coef_oeste = np.exp(-(dif_oeste / sigma)**2)
+                    else:  # Lorentz
+                        # Función Racional (Lorentz): Privilegia regiones amplias
+                        coef_norte = 1.0 / (1.0 + (dif_norte / sigma)**2)
+                        coef_sur = 1.0 / (1.0 + (dif_sur / sigma)**2)
+                        coef_este = 1.0 / (1.0 + (dif_este / sigma)**2)
+                        coef_oeste = 1.0 / (1.0 + (dif_oeste / sigma)**2)
+
+                    # Sumatoria de flujos direccionales limitados por sus coeficientes
+                    variacion_total = (
+                        (dif_norte * coef_norte)
+                        + (dif_sur * coef_sur)
+                        + (dif_este * coef_este)
+                        + (dif_oeste * coef_oeste)
+                    )
+
+                    # Actualización del píxel en la iteración t+1
+                    nueva_capa[y, x] += constante_lambda * variacion_total
+
+            if canales == 3:
+                nueva_img[:, :, c] = nueva_capa
+            else:
+                nueva_img = nueva_capa
+        img = nueva_img
+
+    return np.clip(img, 0, 255).astype(np.uint8)
+
+
+def aplicar_filtro_bilateral(
+    matriz_original: np.ndarray,
+    sigma_s: float,
+    sigma_r: float
+) -> np.ndarray:
+    """
+    Aplica el filtro bilateral para suavizado con preservación de bordes.
+
+    El tamaño de la máscara se calcula en función de sigma_s
+    Se utiliza k = 2 * σ_s + 1
+    sigma_s: constante de suavizado en términos espaciales.
+    sigma_r: constante de suavizado en términos de intensidad de color.
+    """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
+    # El tamaño de la máscara debe ser acorde al valor de σ_s
+    # Se utiliza k = 2 * σ_s + 1
+    tamano_mascara = int(2 * sigma_s + 1)
+
+    if tamano_mascara % 2 == 0:
+        raise ValueError(
+            f"El desvío del suavizado espacial (sigma_s={sigma_s}) debe "
+            "generar una máscara de tamaño impar. Ingrese otro valor."
+        )
+
     offset = tamano_mascara // 2
+    alto, ancho = matriz_original.shape[:2]
     resultado = np.zeros_like(matriz_original, dtype=np.float32)
     matriz_float = matriz_original.astype(np.float32)
 
@@ -1173,47 +1303,34 @@ def aplicar_filtro_bilateral(
             distancia_sq = float(mx**2 + my**2)
             kernel_espacial[my + offset, mx + offset] = np.exp(-distancia_sq / (2 * sigma_s**2))
 
+    # Define un iterable para los canales para evitar repetir toda la lógica
+    canales = 3 if matriz_original.ndim == 3 else 1
+
     # Recorrido de la imagen
     for y in range(offset, alto - offset):
         for x in range(offset, ancho - offset):
-            if matriz_original.ndim == 3:  # Caso RGB
-                for canal in range(3):
-                    w_x = 0.0
-                    acumulado = 0.0
-                    valor_central = matriz_float[y, x, canal]
+            for c in range(canales):
+                # Si es gris, usamos la matriz entera; si es RGB, el canal c
+                img_c = matriz_float[:, :, c] if canales == 3 else matriz_float
 
-                    for my in range(-offset, offset + 1):
-                        for mx in range(-offset, offset + 1):
-                            valor_vecino = matriz_float[y + my, x + mx, canal]
-
-                            # Kernel de rango: similitud de intensidad
-                            diff_intensidad_sq = (valor_central - valor_vecino) ** 2
-                            g_r = np.exp(-diff_intensidad_sq / (2 * sigma_r**2))
-
-                            # Peso total = Gs * Gr
-                            peso = kernel_espacial[my + offset, mx + offset] * g_r
-                            acumulado += valor_vecino * peso
-                            w_x += peso
-
-                    resultado[y, x, canal] = acumulado / w_x if w_x > 0 else valor_central
-
-            else:  # Caso Gris
-                w_x = 0.0
-                acumulado = 0.0
-                valor_central = matriz_float[y, x]
+                w_x, acumulado = 0.0, 0.0
+                valor_central = img_c[y, x]
 
                 for my in range(-offset, offset + 1):
                     for mx in range(-offset, offset + 1):
-                        valor_vecino = matriz_float[y + my, x + mx]
+                        valor_vecino = img_c[y + my, x + mx]
 
-                        diff_intensidad_sq = (valor_central - valor_vecino) ** 2
-                        g_r = np.exp(-diff_intensidad_sq / (2 * sigma_r**2))
-
+                        # Similitud de intensidad
+                        g_r = np.exp(-((valor_central - valor_vecino)**2) / (2 * sigma_r**2))
                         peso = kernel_espacial[my + offset, mx + offset] * g_r
+
                         acumulado += valor_vecino * peso
                         w_x += peso
 
-                resultado[y, x] = acumulado / w_x if w_x > 0 else valor_central
+                if canales == 3:
+                    resultado[y, x, c] = acumulado / w_x if w_x > 0 else valor_central
+                else:
+                    resultado[y, x] = acumulado / w_x if w_x > 0 else valor_central
 
     return np.clip(resultado, 0, 255).astype(np.uint8)
 

@@ -1293,8 +1293,10 @@ def aplicar_filtro_bilateral(
 
     offset = tamano_mascara // 2
     alto, ancho = matriz_original.shape[:2]
-    resultado = np.zeros_like(matriz_original, dtype=np.float32)
+
+    # Conversión a float32 para evitar overflow en potencias y restas de uint8
     matriz_float = matriz_original.astype(np.float32)
+    resultado = np.zeros_like(matriz_float)
 
     # Pre-cálculo del kernel espacial (no depende de la intensidad)
     kernel_espacial = np.zeros((tamano_mascara, tamano_mascara), dtype=np.float32)
@@ -1303,34 +1305,64 @@ def aplicar_filtro_bilateral(
             distancia_sq = float(mx**2 + my**2)
             kernel_espacial[my + offset, mx + offset] = np.exp(-distancia_sq / (2 * sigma_s**2))
 
-    # Define un iterable para los canales para evitar repetir toda la lógica
     canales = 3 if matriz_original.ndim == 3 else 1
 
-    # Recorrido de la imagen
+    # Recorrido pixel a pixel de la imagen
     for y in range(offset, alto - offset):
         for x in range(offset, ancho - offset):
-            for c in range(canales):
-                # Si es gris, usamos la matriz entera; si es RGB, el canal c
-                img_c = matriz_float[:, :, c] if canales == 3 else matriz_float
 
-                w_x, acumulado = 0.0, 0.0
-                valor_central = img_c[y, x]
+            if canales == 3:
+                # --- CASO COLOR (VECTORIAL) ---
+                valor_central = matriz_float[y, x]  # Vector [R, G, B] del pixel central
+                acumulado = np.zeros(3, dtype=np.float32)
+                w_x = 0.0
 
+                # Recorrido de la ventana local
                 for my in range(-offset, offset + 1):
                     for mx in range(-offset, offset + 1):
-                        valor_vecino = img_c[y + my, x + mx]
+                        valor_vecino = matriz_float[y + my, x + mx]  # Vector [R, G, B] vecino
 
-                        # Similitud de intensidad
+                        # Norma euclídea al cuadrado en el espacio de color RGB
+                        distancia_color_sq = (
+                            (valor_central[0] - valor_vecino[0])**2 +
+                            (valor_central[1] - valor_vecino[1])**2 +
+                            (valor_central[2] - valor_vecino[2])**2
+                        )
+
+                        # Similitud en rango/cromática
+                        g_r = np.exp(-distancia_color_sq / (2 * sigma_r**2))
+
+                        # Peso conjunto (espacial * rango)
+                        peso = kernel_espacial[my + offset, mx + offset] * g_r
+
+                        # Acumulación de color y peso de normalización
+                        acumulado += valor_vecino * peso
+                        w_x += peso
+
+                # Aplicar normalización
+                resultado[y, x] = acumulado / w_x if w_x > 0 else valor_central
+
+            else:
+                # --- CASO GRIS (ESCALAR) ---
+                valor_central = matriz_float[y, x]  # Escalar
+                acumulado = 0.0
+                w_x = 0.0
+
+                # Recorrido de la ventana local
+                for my in range(-offset, offset + 1):
+                    for mx in range(-offset, offset + 1):
+                        valor_vecino = matriz_float[y + my, x + mx]
+
+                        # Diferencia de intensidad escalar al cuadrado
                         g_r = np.exp(-((valor_central - valor_vecino)**2) / (2 * sigma_r**2))
+
+                        # Peso conjunto
                         peso = kernel_espacial[my + offset, mx + offset] * g_r
 
                         acumulado += valor_vecino * peso
                         w_x += peso
 
-                if canales == 3:
-                    resultado[y, x, c] = acumulado / w_x if w_x > 0 else valor_central
-                else:
-                    resultado[y, x] = acumulado / w_x if w_x > 0 else valor_central
+                resultado[y, x] = acumulado / w_x if w_x > 0 else valor_central
 
     return np.clip(resultado, 0, 255).astype(np.uint8)
 

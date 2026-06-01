@@ -38,6 +38,13 @@ def _escalar_a_8bit(matriz: np.ndarray) -> np.ndarray:
     return matriz_escalada.astype(np.uint8)
 
 
+def _recortar_a_8bit(matriz: np.ndarray) -> np.ndarray:
+    """
+    Operación de recorte para limitar los valores a [0, 255].
+    """
+    return np.clip(matriz, 0, 255).astype(np.uint8)
+
+
 # --- INICIO TP 0 ---
 # --- CARGA Y GUARDADO ---
 
@@ -177,17 +184,7 @@ def restar_imagenes(img1: np.ndarray, img2: np.ndarray) -> np.ndarray:
         r_b = m1[:, :, 2] - m2
         resultado = (r_r + r_g + r_b) / 3
 
-    min_val = np.min(resultado)
-    max_val = np.max(resultado)
-
-    # EVITAR DIVISIÓN POR CERO
-    if max_val - min_val == 0:
-        return np.zeros(resultado.shape, dtype=np.uint8)
-
-    # ESCALADO
-    resultado = (resultado - min_val) * (255.0 / (max_val - min_val))
-
-    return resultado.astype(np.uint8)
+    return _recortar_a_8bit(resultado)
 
 
 # --- ESTADÍSTICAS DE REGIÓN ---
@@ -266,7 +263,7 @@ def aplicar_transformacion_potencia(matriz_original: np.ndarray, gamma: float) -
     matriz_transformada = constante_c * (matriz_float**gamma)
 
     # Retornamos el escalado
-    return np.clip(matriz_transformada, 0, 255).astype(np.uint8)
+    return _recortar_a_8bit(matriz_transformada)
 
 
 # --- NEGATIVO ---
@@ -437,7 +434,7 @@ def ecualizar_histograma(matriz_original: np.ndarray) -> np.ndarray:
 # --- GENERADOR GAUSSIANO ---
 
 
-def generar_gaussiano(sigma: float, forma: Tuple[int, int], media: float = 0) -> np.ndarray:
+def _generar_gaussiano(sigma: float, forma: Tuple[int, int], media: float = 0) -> np.ndarray:
     """
     Genera ruido con distribución Normal (Gaussiana).
     """
@@ -451,7 +448,7 @@ def generar_gaussiano(sigma: float, forma: Tuple[int, int], media: float = 0) ->
 # --- GENERADOR EXPONENCIAL ---
 
 
-def generar_exponencial(lambd: float, forma: Tuple[int, int]) -> np.ndarray:
+def _generar_exponencial(lambd: float, forma: Tuple[int, int]) -> np.ndarray:
     """
     Genera ruido con distribución Exponencial.
     """
@@ -487,7 +484,7 @@ def aplicar_ruido_aditivo_gaussiano(matriz_original: np.ndarray, densidad: float
 
     # Generar ruido gaussiano solo para la forma de la imagen
     # con valores aleatorios con media 0 y desvío estándar sigma
-    ruido_generado = generar_gaussiano(sigma, matriz_original.shape[:2])
+    ruido_generado = _generar_gaussiano(sigma, matriz_original.shape[:2])
 
     # Aplicar la suma solo a los píxeles seleccionados
     if matriz_original.ndim == 3:  # Imagen color
@@ -497,7 +494,7 @@ def aplicar_ruido_aditivo_gaussiano(matriz_original: np.ndarray, densidad: float
         matriz_float[mascara] += ruido_generado[mascara]
 
     # Clipping para mantener el rango uint8
-    return np.clip(matriz_float, 0, 255).astype(np.uint8)
+    return _recortar_a_8bit(matriz_float)
 
 
 # --- RUIDO MULTIPLICATIVO EXPONENCIAL ---
@@ -526,7 +523,7 @@ def aplicar_ruido_multiplicativo_exponencial(
     mascara = np.random.choice([True, False], size=matriz_original.shape[:2], p=[probabilidad, 1 - probabilidad])
 
     # Generación de la componente de ruido η siguiendo una distribución exponencial
-    ruido = generar_exponencial(lambd, matriz_original.shape[:2])
+    ruido = _generar_exponencial(lambd, matriz_original.shape[:2])
 
     # Aplicación del modelo multiplicativo solo a los píxeles seleccionados
     if matriz_original.ndim == 3:  # Caso imagen color (RGB)
@@ -537,7 +534,7 @@ def aplicar_ruido_multiplicativo_exponencial(
         res[mascara] *= ruido[mascara]
 
     # Truncamiento (Clipping) para asegurar que el resultado final pertenezca al rango [0, 255]
-    return np.clip(res, 0, 255).astype(np.uint8)
+    return _recortar_a_8bit(res)
 
 
 # --- RUIDO SAL Y PIMIENTA ---
@@ -623,7 +620,7 @@ def aplicar_filtro_media(matriz_original: np.ndarray, tamano_mascara: int) -> np
     # Delegamos la computación
     resultado = _aplicar_convolucion_manual(matriz_original, mascara)
 
-    return np.clip(resultado, 0, 255).astype(np.uint8)
+    return _recortar_a_8bit(resultado)
 
 
 # --- FILTRO DE LA MEDIANA ---
@@ -810,7 +807,7 @@ def aplicar_filtro_gaussiano(matriz_original: np.ndarray, sigma: float) -> np.nd
     # Convolución centralizada
     resultado = _aplicar_convolucion_manual(matriz_original, mascara)
 
-    return np.clip(resultado, 0, 255).astype(np.uint8)
+    return _recortar_a_8bit(resultado)
 
 
 # --- GENERA LA MASCARA REALCE DE BORDES ---
@@ -890,7 +887,7 @@ def aplicar_operador_prewitt(matriz_original: np.ndarray) -> np.ndarray:
         g_x = _aplicar_convolucion_manual(matriz_original.astype(np.float64), mascara_x)
         g_y = _aplicar_convolucion_manual(matriz_original.astype(np.float64), mascara_y)
         magnitud = np.sqrt(g_x**2 + g_y**2)
-        return _escalar_a_8bit(magnitud)
+        return _recortar_a_8bit(magnitud)
 
     # Si es color (3D): procesar canal por canal
     else:
@@ -903,7 +900,7 @@ def aplicar_operador_prewitt(matriz_original: np.ndarray) -> np.ndarray:
             g_y = _aplicar_convolucion_manual(canal, mascara_y)
             borde_color[:, :, c] = np.sqrt(g_x**2 + g_y**2)
 
-        return _escalar_a_8bit(borde_color)
+        return _recortar_a_8bit(borde_color)
 
 
 # --- SOBEL ---
@@ -930,7 +927,7 @@ def aplicar_operador_sobel(matriz_original: np.ndarray) -> np.ndarray:
         g_x = _aplicar_convolucion_manual(matriz_original.astype(np.float64), mascara_x)
         g_y = _aplicar_convolucion_manual(matriz_original.astype(np.float64), mascara_y)
         magnitud = np.sqrt(g_x**2 + g_y**2)
-        return _escalar_a_8bit(magnitud)
+        return _recortar_a_8bit(magnitud)
 
     # Si es color (3D): procesar canal por canal
     else:
@@ -943,7 +940,7 @@ def aplicar_operador_sobel(matriz_original: np.ndarray) -> np.ndarray:
             g_y = _aplicar_convolucion_manual(canal, mascara_y)
             borde_color[:, :, c] = np.sqrt(g_x**2 + g_y**2)
 
-        return _escalar_a_8bit(borde_color)
+        return _recortar_a_8bit(borde_color)
 
 
 # --- LAPLACIANO ---
@@ -1183,7 +1180,7 @@ def aplicar_difusion_isotropica(
                 nueva_img = nueva_capa
         img = nueva_img
 
-    return np.clip(img, 0, 255).astype(np.uint8)
+    return _recortar_a_8bit(img)
 
 
 # --- DIFUSIÓN ANISOTRÓPICA ---
@@ -1262,7 +1259,7 @@ def aplicar_difusion_anisotropica(
                 nueva_img = nueva_capa
         img = nueva_img
 
-    return np.clip(img, 0, 255).astype(np.uint8)
+    return _recortar_a_8bit(img)
 
 
 def aplicar_filtro_bilateral(
@@ -1296,7 +1293,7 @@ def aplicar_filtro_bilateral(
 
     # Conversión a float32 para evitar overflow en potencias y restas de uint8
     matriz_float = matriz_original.astype(np.float32)
-    resultado = np.zeros_like(matriz_float)
+    resultado = np.copy(matriz_float)
 
     # Pre-cálculo del kernel espacial (no depende de la intensidad)
     kernel_espacial = np.zeros((tamano_mascara, tamano_mascara), dtype=np.float32)
@@ -1364,7 +1361,7 @@ def aplicar_filtro_bilateral(
 
                 resultado[y, x] = acumulado / w_x if w_x > 0 else valor_central
 
-    return np.clip(resultado, 0, 255).astype(np.uint8)
+    return _recortar_a_8bit(resultado)
 
 
 # --- UMBRALIZACIÓN ÓPTIMA ITERATIVA ---

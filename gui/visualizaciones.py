@@ -9,32 +9,43 @@ from matplotlib.figure import Figure
 from matplotlib.widgets import RectangleSelector
 
 
-def preparar_histograma(histograma: np.ndarray, titulo: str = "Histograma de Niveles de Gris") -> Figure:
+def preparar_histograma(histograma: np.ndarray, titulo: str = "Histograma") -> Figure:
     """
     Crea una figura con el histograma para ser incrustada en la GUI.
-    Recibe el array del histograma (calculado en funciones.py).
+    Se adapta dinámicamente al tamaño del array de entrada para soportar histogramas universales.
     """
-    # Usaremos fondo oscuro para que haga juego con CustomTkinter dark mode
+    # Determinamos la cantidad de niveles real según el tamaño del histograma recibido
+    num_niveles = len(histograma)
+
+    # Fondo oscuro para que haga juego con CustomTkinter dark mode
     fig = plt.figure(figsize=(6, 4))
     fig.patch.set_facecolor("#2b2b2b")  # CTk dark bg
 
     ax = fig.add_subplot(111)
     ax.set_facecolor("#2b2b2b")
     ax.tick_params(colors="white")
+
     for spine in ax.spines.values():
         spine.set_color("white")
+
     ax.xaxis.label.set_color("white")
     ax.yaxis.label.set_color("white")
     ax.title.set_color("white")
 
-    ax.bar(range(256), histograma, color="#1f6aa5", width=1.0)  # CTk blue
+    # El rango del eje X ahora se acopla dinámicamente a num_niveles
+    ax.bar(range(num_niveles), histograma, color="#1f6aa5", width=1.0, edgecolor="#1f6aa5", alpha=0.9)  # CTk blue
+
     ax.set_title(titulo)
-    ax.set_xlabel("Nivel de gris")
+    ax.set_xlabel("Nivel / Valor")
     ax.set_ylabel("Frecuencia relativa")
-    ax.grid(alpha=0.2, color="white")
+
+    # Ajustamos los límites de la caja para evitar espacios vacíos en los extremos del gráfico
+    ax.set_xlim(-1, num_niveles)
+    ax.grid(alpha=0.2, color="white", linestyle='--')
 
     fig.tight_layout()
     return fig
+
 
 
 class VisorMatplotlib:

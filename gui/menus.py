@@ -22,7 +22,7 @@ class GestorMenus:
             values=["Abrir Imagen...", "Guardar Imagen Como...", "Cerrar Imagen", "Salir"],
             command=self._handler_archivo,
             variable=self.var_archivo,
-            width=120,
+            width=110,
         )
         self.menu_archivo.pack(side=tk.LEFT, padx=5, pady=5)
 
@@ -62,7 +62,7 @@ class GestorMenus:
             ],
             command=self._handler_tp1,
             variable=self.var_tp1,
-            width=220,
+            width=140,
             state=tk.DISABLED,
         )
         self.menu_tp1.pack(side=tk.LEFT, padx=5, pady=5)
@@ -86,10 +86,25 @@ class GestorMenus:
             ],
             command=self._handler_tp2,
             variable=self.var_tp2,
-            width=220,
+            width=140,
             state=tk.DISABLED,
         )
         self.menu_tp2.pack(side=tk.LEFT, padx=5, pady=5)
+
+        # Menú TP3
+        self.var_tp3 = ctk.StringVar(value="TP3")
+        self.menu_tp3 = ctk.CTkOptionMenu(
+            self.header_frame,
+            values=[
+                "Bordes: Canny",
+                "Detector SUSAN",
+            ],
+            command=self._handler_tp3,
+            variable=self.var_tp3,
+            width=140,
+            state=tk.DISABLED,
+        )
+        self.menu_tp3.pack(side=tk.LEFT, padx=5, pady=5)
 
     def _reset_labels(self) -> None:
         """Reinicia el texto mostrado en los OptionMenu."""
@@ -97,6 +112,7 @@ class GestorMenus:
         self.var_tp0.set("TP0")
         self.var_tp1.set("TP1")
         self.var_tp2.set("TP2")
+        self.var_tp3.set("TP3")
 
     def _handler_archivo(self, eleccion: str) -> None:
         self._reset_labels()
@@ -178,11 +194,19 @@ class GestorMenus:
         elif eleccion == "Segmentación Color (Bandas)":
             self.app.segmentacion_bandas()
 
+    def _handler_tp3(self, eleccion: str) -> None:
+        self._reset_labels()
+        if eleccion == "Bordes: Canny":
+            self.app.canny()
+        elif eleccion == "Detector SUSAN":
+            self.app.susan()
+
     def cambiar_estado(self, estado: str) -> None:
         """Habilita o deshabilita las opciones principales según el estado."""
         self.menu_tp0.configure(state=estado)
         self.menu_tp1.configure(state=estado)
         self.menu_tp2.configure(state=estado)
+        self.menu_tp3.configure(state=estado)
 
     def cambiar_estado_roi(self, estado: str) -> None:
         """Habilita opciones dependientes de ROI agregándolas dinámicamente."""

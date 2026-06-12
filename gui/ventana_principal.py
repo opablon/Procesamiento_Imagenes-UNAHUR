@@ -49,6 +49,57 @@ def pedir_float(
         return None
 
 
+def pedir_float_sug(
+    titulo: str, mensaje: str, valor_sugerido: float, minvalue: Optional[float] = None, maxvalue: Optional[float] = None
+) -> Optional[float]:
+    """Muestra un diálogo de entrada pre-relleno con el valor sugerido."""
+    dialog = ctk.CTkToplevel()
+    dialog.title(titulo)
+    dialog.geometry("350x180")
+    dialog.attributes("-topmost", True)
+    dialog.grab_set()
+
+    resultado: list[Optional[float]] = [None]
+
+    lbl = ctk.CTkLabel(dialog, text=mensaje)
+    lbl.pack(pady=10)
+
+    entry = ctk.CTkEntry(dialog)
+    entry.insert(0, f"{valor_sugerido:.2f}")
+    entry.pack(pady=10)
+
+    # Focusear el widget y seleccionar todo el texto para fácil edición
+    entry.focus()
+    entry.select_range(0, tk.END)
+
+    def on_ok(event=None):
+        val = entry.get()
+        if not val:
+            resultado[0] = valor_sugerido
+            dialog.destroy()
+            return
+        try:
+            f = float(val)
+            if minvalue is not None and f < minvalue:
+                messagebox.showerror("Error", f"El valor debe ser >= {minvalue}", parent=dialog)
+                return
+            if maxvalue is not None and f > maxvalue:
+                messagebox.showerror("Error", f"El valor debe ser <= {maxvalue}", parent=dialog)
+                return
+            resultado[0] = f
+            dialog.destroy()
+        except ValueError:
+            messagebox.showerror("Error", "Ingrese un número decimal válido.", parent=dialog)
+
+    entry.bind("<Return>", on_ok)
+
+    btn = ctk.CTkButton(dialog, text="Aceptar", command=on_ok)
+    btn.pack(pady=10)
+
+    dialog.wait_window()
+    return resultado[0]
+
+
 def pedir_string(titulo: str, mensaje: str) -> Optional[str]:
     dialog = ctk.CTkInputDialog(text=mensaje, title=titulo)
     return dialog.get_input()
@@ -120,8 +171,8 @@ class AppProcesamiento:
         self.modo_activo = None
         self.area_seleccionada = False
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-        self.root.geometry("800x600")
-        self.root.minsize(800, 600)
+        self.root.geometry("900x650")
+        self.root.minsize(900, 600)
         self.root.bind_all(
             "<KP_Enter>",
             lambda e: e.widget.event_generate("<Return>") if isinstance(e.widget, (tk.Entry, tk.Button)) else None,
@@ -478,7 +529,7 @@ class AppProcesamiento:
         try:
             nombre = self.nombre_archivo if self.nombre_archivo else "Sin título"
             titulo_full = f"Histograma - {nombre}"
-            histograma = funciones.obtener_histograma_gris(self.matriz_actual)
+            histograma = funciones.obtener_histograma(self.matriz_actual)
             fig = preparar_histograma(histograma, titulo=titulo_full)
             self._mostrar_ventana_grafico(fig, titulo_full)
         except Exception as e:
@@ -545,6 +596,60 @@ class AppProcesamiento:
 
     def segmentacion_bandas(self) -> None:
         self._ejecutar_operacion_core(funciones.segmentar_color_por_bandas, "seg_color")
+
+    # --- Comandos TP3 ---
+
+    def canny(self) -> None:
+        """Maneja la ejecución del detector de bordes Canny con sugerencia de umbrales."""
+        if self.matriz_actual is None:
+            return
+        t1_sug, t2_sug = funciones._sugerir_umbrales_canny(self.matriz_actual)
+
+        t2 = pedir_float_sug("Canny", f"Umbral superior (t2) [Sugerido: {t2_sug:.2f}]:", t2_sug, minvalue=0.0)
+        if t2 is None:
+            return
+
+        t1 = pedir_float_sug(
+            "Canny", f"Umbral inferior (t1) [Sugerido: {t1_sug:.2f}]:", t1_sug, minvalue=0.0, maxvalue=t2
+        )
+        if t1 is None:
+            return
+
+        conectitud = pedir_opcion("Canny", "Conectividad:", ["4-conexo", "8-conexo"])
+        if conectitud is not None:
+            self._ejecutar_operacion_core(funciones.aplicar_detector_canny, "canny", t1, t2, conectitud)
+
+    def susan(self) -> None:
+        """Maneja la ejecución del detector de características SUSAN."""
+        t = pedir_float("SUSAN", "Umbral de brillo (t) (por defecto 15.0):", minvalue=0.0)
+        if t is None:
+            return
+        tol = pedir_float("SUSAN", "Tolerancia (por defecto 0.1):", minvalue=0.0)
+        if tol is None:
+            return
+        modo = pedir_opcion("SUSAN", "Visualización:", ["Bordes", "Esquinas", "Ambos"])
+        if modo is not None:
+            self._ejecutar_operacion_core(_obtener_resultado_susan_combinado, f"susan_{modo.lower()}", modo, t, tol)
+
+
+# --- Wrappers de ejecución para TP3 ---
+
+def _obtener_resultado_susan_combinado(imagen: np.ndarray, modo: str, t: float, tolerancia: float) -> np.ndarray:
+    """Ejecuta el detector SUSAN y devuelve la matriz correspondiente según el modo."""
+    mapa_bordes, mapa_esquinas = funciones.aplicar_detector_susan(imagen, t, tolerancia)
+    if modo == "Bordes":
+        return mapa_bordes
+    elif modo == "Esquinas":
+        return mapa_esquinas
+    elif modo == "Ambos":
+        # Combinar: Esquinas en Rojo (canal 0), Bordes en Verde (canal 1)
+        alto, ancho = mapa_bordes.shape[:2]
+        resultado = np.zeros((alto, ancho, 3), dtype=np.uint8)
+        resultado[:, :, 0] = mapa_esquinas
+        resultado[:, :, 1] = mapa_bordes
+        return resultado
+    else:
+        raise ValueError(f"Modo de visualización de SUSAN no soportado: {modo}")
 
 
 def iniciar_aplicacion() -> None:

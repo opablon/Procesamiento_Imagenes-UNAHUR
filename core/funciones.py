@@ -282,40 +282,37 @@ def obtener_negativo(matriz_original: np.ndarray) -> np.ndarray:
 # --- HISTOGRAMA ---
 
 
-def obtener_histograma_gris(matriz_original: np.ndarray) -> np.ndarray:
+def obtener_histograma(matriz_original: np.ndarray) -> np.ndarray:
     """
-    Calcula el histograma normalizado (frecuencias relativas).
-    Retorna un arreglo de 256 elementos donde cada componente h_i se define como:
-    h_i = n_i / (N * M)
-    donde n_i es la cantidad de píxeles con nivel de gris 'i', y (N*M) es el total de píxeles.
+    Calcula el histograma normalizado (frecuencias relativas) para cualquier
+    array de NumPy (Grises, RGB, Magnitudes, etc.).
+
+    Se adapta dinámicamente al rango numérico entero de los datos presentes.
     """
-    if not _es_imagen_valida(matriz_original):
-        raise ValueError("Imagen no soportada.")
+    if not isinstance(matriz_original, np.ndarray):
+        raise ValueError("La entrada debe ser un array de NumPy.")
 
-    # Inicialización del arreglo de frecuencias para 256 niveles
-    histograma = np.zeros(256, dtype=int)
-    alto, ancho = matriz_original.shape[:2]
+    # Aplanar la matriz para procesar todos sus elementos secuencialmente
+    # Esto elimina la necesidad de validar dimensiones (.ndim) o canales
+    datos_planos = matriz_original.flatten()
 
-    # Recorrido manual para el conteo de frecuencias absolutas
-    for y in range(alto):
-        for x in range(ancho):
-            if matriz_original.ndim == 3:
-                # Conversión manual a niveles de gris (promedio de bandas R, G y B)
-                suma = 0.0
-                for canal in range(3):
-                    # Uso de float para evitar el overflow del tipo uint8 en la suma
-                    suma += float(matriz_original[y, x, canal])
-                valor = int(suma / 3)
-            else:
-                valor = int(matriz_original[y, x])
+    # Determinar el rango dinámico según los valores reales del array
+    # Asegura que quepan los valores uint8 (0-255) o magnitudes flotantes grandes
+    max_valor = int(np.max(datos_planos))
+    num_niveles = max(256, max_valor + 1)
 
-            # Incremento de n_i: cantidad de ocurrencias del nivel de gris detectado
-            histograma[valor] += 1
+    histograma = np.zeros(num_niveles, dtype=int)
 
-    total_pixeles = alto * ancho
+    # Recorrido lineal único píxel por píxel (o canal por canal)
+    for valor_float in datos_planos:
+        valor_entero = int(valor_float)
+        histograma[valor_entero] += 1
 
-    # Retorno del histograma normalizado h_i = n_i / total_pixeles
-    return histograma / total_pixeles
+    # El total de elementos es la longitud del array aplanado
+    total_elementos = datos_planos.size
+
+    # Retorno del histograma normalizado
+    return histograma / total_elementos
 
 
 # --- UMBRALIZACIÓN ---
@@ -375,11 +372,13 @@ def ecualizar_histograma(matriz_original: np.ndarray) -> np.ndarray:
     if not _es_imagen_valida(matriz_original):
         raise ValueError("Imagen no soportada.")
 
-    histograma = obtener_histograma_gris(matriz_original)
+    histograma = obtener_histograma(matriz_original)
+    num_niveles = len(histograma)
+    L_menos_1 = num_niveles - 1
     alto, ancho = matriz_original.shape[:2]
 
     # Cálculo de la probabilidad acumulada (FDA / s_k)
-    probabilidad_acumulada = np.zeros(256, dtype=float)
+    probabilidad_acumulada = np.zeros(num_niveles, dtype=float)
     acumulado = 0.0
     for i in range(256):
         acumulado += histograma[i]
@@ -407,25 +406,25 @@ def ecualizar_histograma(matriz_original: np.ndarray) -> np.ndarray:
                     gris_entrada = matriz_original[y, x, canal]
 
                     # Aplicación de la fórmula con s_k y s_min
-                    valor_transformado = 255 * (
+                    valor_transformado = L_menos_1 * (
                         (probabilidad_acumulada[gris_entrada] - probabilidad_minima) / (1.0 - probabilidad_minima)
                     )
 
                     # Parte entera para obtener s_pico (valor discretizado)
                     gris_salida = int(valor_transformado)
-                    resultado[y, x, canal] = max(0, min(255, gris_salida))
+                    resultado[y, x, canal] = max(0, min(L_menos_1, gris_salida))
             else:
                 # Nivel de gris actual de entrada (r_k)
                 gris_entrada = matriz_original[y, x]
 
                 # Aplicación de la fórmula con s_k y s_min
-                valor_transformado = 255 * (
+                valor_transformado = L_menos_1 * (
                     (probabilidad_acumulada[gris_entrada] - probabilidad_minima) / (1.0 - probabilidad_minima)
                 )
 
                 # Parte entera para obtener s_pico (valor discretizado)
                 gris_salida = int(valor_transformado)
-                resultado[y, x] = max(0, min(255, gris_salida))
+                resultado[y, x] = max(0, min(L_menos_1, gris_salida))
 
     return resultado
 
@@ -863,84 +862,56 @@ def aplicar_filtro_realce_de_bordes(matriz_original: np.ndarray, tamano_mascara:
 
 # --- INICIO TP 2 ---
 # --- DETECTORES DE BORDES ---
+
+
+# --- OBTENER MAGNITUD DE GRADIENTE ---
+
+
+def _obtener_magnitud_gradiente(gradiente_x: np.ndarray, gradiente_y: np.ndarray) -> np.ndarray:
+    """
+    Calcula la magnitud del gradiente.
+    """
+    return np.sqrt(gradiente_x**2 + gradiente_y**2)
+
+
 # --- PREWITT ---
 
 
 def aplicar_operador_prewitt(matriz_original: np.ndarray) -> np.ndarray:
-    """
-    Detecta bordes mediante el operador de Prewitt estándar de 3x3.
-    """
-    if not _es_imagen_valida(matriz_original):
-        raise ValueError("Imagen no soportada.")
-
-    # Máscaras de Prewitt
+    """Aplica Prewitt devolviendo la magnitud formateada a 8 bits."""
     mascara_x = np.array([[-1.0, 0.0, 1.0],
-                   [-1.0, 0.0, 1.0],
-                   [-1.0, 0.0, 1.0]], dtype=float)
+                          [-1.0, 0.0, 1.0],
+                          [-1.0, 0.0, 1.0]], dtype=float)
 
     mascara_y = np.array([[-1.0, -1.0, -1.0],
-                   [ 0.0,  0.0,  0.0],
-                   [ 1.0,  1.0,  1.0]], dtype=float)
+                          [0.0, 0.0, 0.0],
+                          [1.0, 1.0, 1.0]], dtype=float)
 
-    # Si es escala de grises (2D)
-    if matriz_original.ndim == 2:
-        g_x = _aplicar_convolucion_manual(matriz_original.astype(np.float64), mascara_x)
-        g_y = _aplicar_convolucion_manual(matriz_original.astype(np.float64), mascara_y)
-        magnitud = np.sqrt(g_x**2 + g_y**2)
-        return _recortar_a_8bit(magnitud)
+    gradiente_x = _aplicar_convolucion_manual(matriz_original, mascara_x)
+    gradiente_y = _aplicar_convolucion_manual(matriz_original, mascara_y)
 
-    # Si es color (3D): procesar canal por canal
-    else:
-        alto, ancho, canales = matriz_original.shape
-        borde_color = np.zeros((alto, ancho, canales), dtype=np.float64)
-
-        for c in range(canales):
-            canal = matriz_original[:, :, c].astype(np.float64)
-            g_x = _aplicar_convolucion_manual(canal, mascara_x)
-            g_y = _aplicar_convolucion_manual(canal, mascara_y)
-            borde_color[:, :, c] = np.sqrt(g_x**2 + g_y**2)
-
-        return _recortar_a_8bit(borde_color)
+    magnitud = _obtener_magnitud_gradiente(gradiente_x, gradiente_y)
+    return _recortar_a_8bit(magnitud)
 
 
 # --- SOBEL ---
 
 
 def aplicar_operador_sobel(matriz_original: np.ndarray) -> np.ndarray:
-    """
-    Detecta bordes mediante el operador de Sobel estándar de 3x3.
-    """
-    if not _es_imagen_valida(matriz_original):
-        raise ValueError("Imagen no soportada.")
-
-    # Máscaras de Sobel
+    """Aplica Sobel devolviendo la magnitud formateada a 8 bits."""
     mascara_x = np.array([[-1.0, 0.0, 1.0],
-                   [-2.0, 0.0, 2.0],
-                   [-1.0, 0.0, 1.0]], dtype=float)
+                          [-2.0, 0.0, 2.0],
+                          [-1.0, 0.0, 1.0]], dtype=float)
 
     mascara_y = np.array([[-1.0, -2.0, -1.0],
-                   [ 0.0,  0.0,  0.0],
-                   [ 1.0,  2.0,  1.0]], dtype=float)
+                          [0.0, 0.0, 0.0],
+                          [1.0, 2.0, 1.0]], dtype=float)
 
-    # Si es escala de grises (2D)
-    if matriz_original.ndim == 2:
-        g_x = _aplicar_convolucion_manual(matriz_original.astype(np.float64), mascara_x)
-        g_y = _aplicar_convolucion_manual(matriz_original.astype(np.float64), mascara_y)
-        magnitud = np.sqrt(g_x**2 + g_y**2)
-        return _recortar_a_8bit(magnitud)
+    gradiente_x = _aplicar_convolucion_manual(matriz_original, mascara_x)
+    gradiente_y = _aplicar_convolucion_manual(matriz_original, mascara_y)
 
-    # Si es color (3D): procesar canal por canal
-    else:
-        alto, ancho, canales = matriz_original.shape
-        borde_color = np.zeros((alto, ancho, canales), dtype=np.float64)
-
-        for c in range(canales):
-            canal = matriz_original[:, :, c].astype(np.float64)
-            g_x = _aplicar_convolucion_manual(canal, mascara_x)
-            g_y = _aplicar_convolucion_manual(canal, mascara_y)
-            borde_color[:, :, c] = np.sqrt(g_x**2 + g_y**2)
-
-        return _recortar_a_8bit(borde_color)
+    magnitud = _obtener_magnitud_gradiente(gradiente_x, gradiente_y)
+    return _recortar_a_8bit(magnitud)
 
 
 # --- LAPLACIANO ---
@@ -1440,8 +1411,10 @@ def _obtener_umbral_otsu(matriz_original: np.ndarray) -> int:
         raise ValueError("Imagen no soportada.")
 
     # Computar histograma normalizado pi
-    p = obtener_histograma_gris(matriz_original)
-    L = 256
+    p = obtener_histograma(matriz_original)
+
+    # L dinámico según los valores reales de la matriz
+    L = len(p)
 
     # Computar sumas acumuladas P1(t)
     P1 = np.zeros(L, dtype=float)
@@ -1458,7 +1431,7 @@ def _obtener_umbral_otsu(matriz_original: np.ndarray) -> int:
         m[t] = acumulado_m
 
     # Promedio ponderado global mG (es el último valor de m)
-    mG = m[L - 1]
+    mG = m[L-1] if L > 0 else 0.0
 
     # Computar varianza entre clases sigma_B^2(t)
     sigma_B_sq = np.zeros(L, dtype=float)
@@ -1468,7 +1441,7 @@ def _obtener_umbral_otsu(matriz_original: np.ndarray) -> int:
 
         # Evitar división por cero si una clase está vacía
         if denominador > 0:
-            numerador = (mG * P1[t] - m[t]) ** 2
+            numerador = (mG * P1[t] - m[t])**2
             sigma_B_sq[t] = numerador / denominador
         else:
             sigma_B_sq[t] = 0
@@ -1523,3 +1496,283 @@ def segmentar_color_por_bandas(matriz_original: np.ndarray) -> np.ndarray:
                     resultado[y, x, canal] = 0
 
     return resultado
+
+
+# --- OBTENER DIRECCIÓN DEL GRADIENTE ---
+
+
+def _obtener_direccion_gradiente(gradiente_x: np.ndarray, gradiente_y: np.ndarray) -> np.ndarray:
+    """
+    Calcula el ángulo analítico del gradiente: arcotangente(Iy / Ix).
+    Si Ix es 0, el ángulo se fija de forma segura en PI/2 (90 grados).
+    """
+    direccion = np.full_like(gradiente_x, np.pi / 2, dtype=float)
+    mascara_no_cero = gradiente_x != 0
+    direccion[mascara_no_cero] = np.arctan(gradiente_y[mascara_no_cero] / gradiente_x[mascara_no_cero])
+
+    return direccion
+
+
+# --- DISCRETIZAR ANGULOS DEL GRADIENTE ---
+
+
+def _discretizar_direcciones(direccion: np.ndarray) -> np.ndarray:
+    """
+    Cuantifica la matriz de ángulos dentro de las 4 direcciones
+    posibles de la grilla: 0°, 45°, 90° o 135°.
+    """
+    alto, ancho = direccion.shape
+    angulo_discreto = np.zeros_like(direccion, dtype=int)
+
+    for x in range(alto):
+        for y in range(ancho):
+            grados = np.degrees(direccion[x, y]) % 180
+            if (grados < 22.5) or (grados >= 157.5):
+                angulo_discreto[x, y] = 0
+            elif (grados >= 22.5) and (grados < 67.5):
+                angulo_discreto[x, y] = 45
+            elif (grados >= 67.5) and (grados < 112.5):
+                angulo_discreto[x, y] = 90
+            elif (grados >= 112.5) and (grados < 157.5):
+                angulo_discreto[x, y] = 135
+
+    return angulo_discreto
+
+
+# --- SUPRESIÓN DE NO MÁXIMOS ---
+
+
+def _supresion_no_maximos(magnitud: np.ndarray, angulo_discreto: np.ndarray) -> np.ndarray:
+    """
+    Aplica el criterio de supresión estricto (>). Si la magnitud
+    del píxel no supera a sus dos vecinos ortogonales, se anula (0).
+    """
+    alto, ancho = magnitud.shape
+    imagen_suprimida = np.zeros_like(magnitud, dtype=np.float64)
+
+    for x in range(1, alto - 1):
+        for y in range(1, ancho - 1):
+            ang = angulo_discreto[x, y]
+
+            v1 = (x, y)
+            v2 = (x, y)
+
+            # Asignación geométrica según la dirección ortogonal
+            if ang == 0:
+                v1, v2 = (x, y + 1), (x, y - 1)
+            elif ang == 45:
+                v1, v2 = (x + 1, y + 1), (x - 1, y - 1)
+            elif ang == 90:
+                v1, v2 = (x + 1, y), (x - 1, y)
+            elif ang == 135:
+                v1, v2 = (x + 1, y - 1), (x - 1, y + 1)
+
+            # Desempaquetamos la tupla v1 en x1, y1 y la tupla v2 en x2, y2
+            x1, y1 = v1
+            x2, y2 = v2
+
+            if (magnitud[x, y] > magnitud[x1, y1]) and (magnitud[x, y] > magnitud[x2, y2]):
+                imagen_suprimida[x, y] = magnitud[x, y]
+            else:
+                imagen_suprimida[x, y] = 0.0
+
+    return imagen_suprimida
+
+
+# --- UMBRALIZACIÓN CON HISTÉRESIS ---
+
+
+def _umbralizacion_con_histeresis(
+    imagen_suprimida: np.ndarray,
+    t1: float,
+    t2: float,
+    conectitud: str
+) -> np.ndarray:
+    """
+    Clasifica en bordes fuertes y débiles, propagando la conectividad
+    hasta que no se registren cambios estructurales en la matriz.
+    """
+    alto, ancho = imagen_suprimida.shape
+    imagen_bordes = np.zeros_like(imagen_suprimida, dtype=np.uint8)
+
+    BORDE_FUERTE = 255
+    BORDE_DEBIL = 50
+
+    for x in range(alto):
+        for y in range(ancho):
+            if imagen_suprimida[x, y] > t2:
+                imagen_bordes[x, y] = BORDE_FUERTE
+            elif t1 <= imagen_suprimida[x, y] <= t2:
+                imagen_bordes[x, y] = BORDE_DEBIL
+
+    desplazamientos = [(-1, 0), (1, 0), (0, -1), (0, 1)] if conectitud == '4-conexo' else \
+                      [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+
+    hubo_cambios = True
+    while hubo_cambios:
+        hubo_cambios = False
+        for x in range(alto):
+            for y in range(ancho):
+                if imagen_bordes[x, y] == BORDE_DEBIL:
+                    for dx, dy in desplazamientos:
+                        nx, ny = x + dx, y + dy
+                        if 0 <= nx < alto and 0 <= ny < ancho:
+                            if imagen_bordes[nx, ny] == BORDE_FUERTE:
+                                imagen_bordes[x, y] = BORDE_FUERTE
+                                hubo_cambios = True
+                                break
+
+    imagen_bordes[imagen_bordes == BORDE_DEBIL] = 0
+    return imagen_bordes
+
+
+# --- DETECTOR DE BORDES CANNY ---
+
+
+def aplicar_detector_canny(
+    imagen_suavizada: np.ndarray,
+    t1: float,
+    t2: float,
+    conectitud: str = '4-conexo'
+) -> np.ndarray:
+    """
+    Algoritmo de Canny.
+    Requiere una matriz de entrada previamente suavizada.
+    """
+    if imagen_suavizada.ndim == 3:
+        alto, ancho, canales = imagen_suavizada.shape
+        mapa_bordes_final = np.zeros((alto, ancho), dtype=np.uint8)
+        for c in range(canales):
+            canal_bordes = aplicar_detector_canny(imagen_suavizada[:, :, c], t1, t2, conectitud=conectitud)
+            mapa_bordes_final = np.maximum(mapa_bordes_final, canal_bordes)
+        return mapa_bordes_final
+
+    mascara_x = np.array([[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]], dtype=float)
+    mascara_y = np.array([[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]], dtype=float)
+
+    # Obtención de gradientes X e Y
+    Ix = _aplicar_convolucion_manual(imagen_suavizada, mascara_x)
+    Iy = _aplicar_convolucion_manual(imagen_suavizada, mascara_y)
+
+    # Obtención de magnitud de borde
+    magnitud = _obtener_magnitud_gradiente(Ix, Iy)
+
+    # Obtención de dirección del gradiente
+    direccion = _obtener_direccion_gradiente(Ix, Iy)
+
+    # Discretizar direcciones (Cuantificación angular)
+    angulo_discreto = _discretizar_direcciones(direccion)
+
+    # Supresión de no máximos
+    imagen_suprimida = _supresion_no_maximos(magnitud, angulo_discreto)
+
+    # Umbralización con histéresis y conectividad final
+    imagen_bordes = _umbralizacion_con_histeresis(imagen_suprimida, t1, t2, conectitud=conectitud)
+
+    return imagen_bordes
+
+
+# --- SUGERIR UMBRALES CANNY ---
+
+
+def _sugerir_umbrales_canny(matriz_original: np.ndarray) -> Tuple[float, float]:
+    """
+    Calcula los umbrales sugeridos para Canny.
+    t2 se obtiene mediante el método de Otsu sobre la magnitud del gradiente de Sobel sin escalar.
+    t1 se sugiere como el 30% de t2 (0.3 * t2).
+    """
+    mascara_x = np.array([[-1.0, 0.0, 1.0],
+                          [-2.0, 0.0, 2.0],
+                          [-1.0, 0.0, 1.0]], dtype=float)
+
+    mascara_y = np.array([[-1.0, -2.0, -1.0],
+                          [0.0, 0.0, 0.0],
+                          [1.0, 2.0, 1.0]], dtype=float)
+
+    # Obtención de gradientes X e Y
+    Ix = _aplicar_convolucion_manual(matriz_original, mascara_x)
+    Iy = _aplicar_convolucion_manual(matriz_original, mascara_y)
+
+    # Obtención de magnitud de borde
+    magnitud = _obtener_magnitud_gradiente(Ix, Iy)
+
+    # Obtener umbral de Otsu directamente sobre la magnitud
+    t2 = float(_obtener_umbral_otsu(magnitud))
+    t1 = 0.3 * t2
+
+    return t1, t2
+
+
+# --- DETECTOR DE BORDES SUSAN ---
+
+
+def aplicar_detector_susan(
+    imagen: np.ndarray,
+    t: float = 15.0,
+    tolerancia: float = 0.1
+) -> tuple:
+    """
+    Detector de bordes y esquinas S.U.S.A.N.
+    Retorna dos matrices: mapa de bordes y mapa de esquinas.
+    """
+    # Definición geométrica de la máscara circular de 37 pixels (radios teóricos: 3,5,7,7,7,5,3)
+    desplazamientos = [
+                            (-3, -1), (-3, 0), (-3, 1),
+                  (-2, -2), (-2, -1), (-2, 0), (-2, 1), (-2, 2),
+        (-1, -3), (-1, -2), (-1, -1), (-1, 0), (-1, 1), (-1, 2), (-1, 3),
+        (0, -3),  (0, -2),  (0, -1),  (0, 0),  (0, 1),  (0, 2),  (0, 3),
+        (1, -3),  (1, -2),  (1, -1),  (1, 0),  (1, 1),  (1, 2),  (1, 3),
+                  (2, -2),  (2, -1),  (2, 0),  (2, 1),  (2, 2),
+                            (3, -1),  (3, 0),  (3, 1)
+    ]
+
+    alto, ancho = imagen.shape[:2]
+    mapa_bordes = np.zeros((alto, ancho), dtype=np.uint8)
+    mapa_esquinas = np.zeros((alto, ancho), dtype=np.uint8)
+
+    imagen_float = imagen.astype(np.float32)
+
+    # CASO ESCALA DE GRISES
+    if imagen.ndim == 2:
+        for x in range(3, alto - 3):
+            for y in range(3, ancho - 3):
+                l_r0 = imagen_float[x, y]
+                n_r0 = 0
+
+                for dx, dy in desplazamientos:
+                    l_r = imagen_float[x + dx, y + dy]
+
+                    # Evaluación de similitud de nivel de gris
+                    if abs(l_r - l_r0) < t:
+                        n_r0 += 1
+
+                s_r0 = 1.0 - (n_r0 / 37.0)
+
+                # Clasificación
+                if abs(s_r0 - 0.5) <= tolerancia:
+                    mapa_bordes[x, y] = 255
+                elif abs(s_r0 - 0.75) <= tolerancia:
+                    mapa_esquinas[x, y] = 255
+
+    # CASO RGB
+    else:
+        for c in range(3):
+            for x in range(3, alto - 3):
+                for y in range(3, ancho - 3):
+                    l_r0 = imagen_float[x, y, c]
+                    n_r0 = 0
+
+                    for dx, dy in desplazamientos:
+                        l_r = imagen_float[x + dx, y + dy, c]
+
+                        if abs(l_r - l_r0) < t:
+                            n_r0 += 1
+
+                    s_r0 = 1.0 - (n_r0 / 37.0)
+
+                    if abs(s_r0 - 0.5) <= tolerancia:
+                        mapa_bordes[x, y] = 255
+                    elif abs(s_r0 - 0.75) <= tolerancia:
+                        mapa_esquinas[x, y] = 255
+
+    return mapa_bordes, mapa_esquinas

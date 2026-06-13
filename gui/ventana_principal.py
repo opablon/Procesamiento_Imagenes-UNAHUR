@@ -241,6 +241,10 @@ class AppProcesamiento:
         self.area_seleccionada = True
         self.gestor_menus.cambiar_estado_roi(tk.NORMAL)
 
+        # Obtener coordenadas validadas de la selección y mostrarlas en la barra de estado
+        xm, ym, xM, yM = self._obtener_roi_validada()
+        self.lbl_status.configure(text=f"Región: xmin={xm}, ymin={ym}, xmax={xM}, ymax={yM}")
+
     def _al_click(self, e: Any) -> None:
         """Maneja interacciones puntuales (Ver/Modificar Píxel)."""
         if self.matriz_actual is None or e.inaxes != self.visor.ax:
@@ -633,6 +637,7 @@ class AppProcesamiento:
 
 
 # --- Wrappers de ejecución para TP3 ---
+
 
 def _obtener_resultado_susan_combinado(imagen: np.ndarray, modo: str, t: float, tolerancia: float) -> np.ndarray:
     """Ejecuta el detector SUSAN y devuelve la matriz correspondiente según el modo."""

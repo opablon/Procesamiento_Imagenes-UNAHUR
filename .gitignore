@@ -56,3 +56,7 @@ desktop.ini
 
 # Ignorar PDFs de consignas en assets
 assets/*.pdf
+
+# Ignorar videos y video sintetico
+assets/videos/
+assets/video_sintetico/

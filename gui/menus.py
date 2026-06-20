@@ -98,6 +98,8 @@ class GestorMenus:
             values=[
                 "Bordes: Canny",
                 "Detector SUSAN",
+                "Transformada de Hough",
+                "Contornos Activos",
             ],
             command=self._handler_tp3,
             variable=self.var_tp3,
@@ -200,6 +202,10 @@ class GestorMenus:
             self.app.canny()
         elif eleccion == "Detector SUSAN":
             self.app.susan()
+        elif eleccion == "Transformada de Hough":
+            self.app.hough()
+        elif eleccion == "Contornos Activos":
+            self.app.contornos_activos()
 
     def cambiar_estado(self, estado: str) -> None:
         """Habilita o deshabilita las opciones principales según el estado."""

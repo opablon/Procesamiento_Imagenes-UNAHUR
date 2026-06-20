@@ -119,12 +119,22 @@ Para cumplir con los objetivos pedagógicos de la UNAHUR, este software se rige 
   * Filtro Bilateral (suavizado con preservación de bordes combinando vecindad espacial y rango de intensidad) con dimensionamiento automático de máscara basado en $\sigma_s$.
 * **Segmentación y Umbralización Óptima:** Algoritmo de umbralización óptima global e iterativa (Isodata), método de Otsu (maximización de la varianza entre clases mediante sumas acumuladas de histograma normalizado), y segmentación de color por bandas (binarización mediante Otsu aplicada de manera independiente a cada canal R, G y B).
 
-### [/] TP3: Detectores de Características de Imagen
+### [x] TP3: Detectores de Características de Imagen y Segmentación Avanzada
 * **Detector de Bordes Canny:** Implementación de gradientes espaciales, discretización angular de direcciones (0°, 45°, 90°, 135°), supresión de no máximos, y umbralización con histéresis mediante conectividad (4-conexo y 8-conexo).
 * **Detector SUSAN (Smallest Univaluate Assimilating Nucleus):**
   * Detección de bordes mediante máscara circular de 37 píxeles y evaluación de la similitud del núcleo USAN.
   * Detección de esquinas utilizando el mismo núcleo y umbrales específicos de similitud de nivel de gris.
   * Visualización flexible de bordes, esquinas o ambos combinados (mostrando esquinas en rojo y bordes en verde).
+* **Transformada de Hough (Clásica para Rectas):**
+  * Discretización y parametrización del espacio acumulador binario utilizando variables $(\rho, \theta)$.
+  * Algoritmo de votación para píxeles blancos (bordes) y extracción de máximos locales en base a un umbral configurable de votos mínimos.
+  * Visualización y trazado de las rectas resultantes dibujadas sobre la imagen original/binaria o cargando un fondo personalizado en disco.
+* **Contornos Activos (Level Sets - Algoritmo de Intercambio de Píxeles):**
+  * Implementación del algoritmo rápido de intercambio de píxeles (Fast Level Set Method) que optimiza la evolución de la curva sin la necesidad de re-inicializaciones costosas.
+  * Definición discreta de la función implícita de nivel $\Phi$ a través de 4 estados dinámicos (-3 para interior profundo, -1 para frontera interna $L_{in}$, 1 para frontera externa $L_{out}$ y 3 para exterior/fondo).
+  * Evaluación de la función de decisión topológica $F_d$ basada en la similitud estadística local respecto a los promedios de color del objeto ($\theta_1$) y del fondo ($\theta_0$).
+  * **Soporte para Secuencia de Imágenes:** Procesamiento frame a frame propagando la curva final del frame previo como inicialización automática del siguiente para el tracking e interactividad dinámica (controles de play, pausa, reproducción frame a frame, cambio de FPS e interactividad mediante ROI inicial sobre la secuencia).
+
 
 ---
 

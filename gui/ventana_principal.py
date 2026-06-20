@@ -1,4 +1,5 @@
 import functools
+import multiprocessing
 import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -57,6 +58,7 @@ def pedir_float_sug(
     dialog.title(titulo)
     dialog.geometry("350x180")
     dialog.attributes("-topmost", True)
+    dialog.wait_visibility()
     dialog.grab_set()
 
     resultado: list[Optional[float]] = [None]
@@ -110,6 +112,7 @@ def pedir_opcion(titulo: str, mensaje: str, opciones: list[str]) -> Optional[str
     dialog.title(titulo)
     dialog.geometry("300x150")
     dialog.attributes("-topmost", True)
+    dialog.wait_visibility()
     dialog.grab_set()
 
     resultado: list[Optional[str]] = [None]
@@ -172,6 +175,7 @@ class DialogoConfiguracionContornos(ctk.CTkToplevel):
         self.title("Configuración - Contornos Activos")
         self.geometry("450x380")
         self.attributes("-topmost", True)
+        self.wait_visibility()
         self.grab_set()
 
         self.resultado: Optional[Tuple[str, Tuple[int, int, int], Tuple[int, int, int], int]] = None
@@ -323,6 +327,7 @@ class VentanaSecuenciaContornos(ctk.CTkToplevel):
         self.root = self
 
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
+        self.bind("<Escape>", self._on_escape)
 
         # --- Barra de Estado ---
         self.f_status = ctk.CTkFrame(self, height=30, corner_radius=0)
@@ -640,27 +645,49 @@ class VentanaSecuenciaContornos(ctk.CTkToplevel):
             AppProcesamiento.instancias.remove(self)
         self.destroy()
 
+    def _on_escape(self, event: Optional[Any] = None) -> None:
+        if self.reproduciendo:
+            self.reproduciendo = False
+            self.lbl_status.configure(text="Operación cancelada")
+            messagebox.showinfo("Operación", "Operación cancelada", parent=self)
+
 import core.funciones as funciones
 from gui.menus import GestorMenus
 from gui.visualizaciones import VisorMatplotlib, preparar_histograma
 
 
+def _funcion_trabajadora_proceso(queue: Any, funcion_core: Callable, imagen: np.ndarray, *args: Any) -> None:
+    """Función de nivel de módulo para que sea picklable por multiprocessing."""
+    try:
+        res = funcion_core(imagen, *args)
+        queue.put(("SUCCESS", res))
+    except KeyboardInterrupt:
+        queue.put(("CANCELLED", None))
+    except Exception as e:
+        queue.put(("ERROR", str(e)))
+
+
+def _obtener_histogramas_rgb(imagen: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Calcula los histogramas individuales para los canales R, G y B de forma picklable."""
+    hist_r = funciones.obtener_histograma(imagen[:, :, 0])
+    hist_g = funciones.obtener_histograma(imagen[:, :, 1])
+    hist_b = funciones.obtener_histograma(imagen[:, :, 2])
+    return hist_r, hist_g, hist_b
+
+
 def feedback_visual(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
-        AppProcesamiento.set_estado_global("Procesando...", "watch")
-        # Forzamos actualización de la UI para que se vea el cursor antes del procesamiento pesado
+        self.set_estado("Procesando...", "watch")
         try:
-            for inst in AppProcesamiento.instancias:
-                if inst.root.winfo_exists():
-                    inst.root.update_idletasks()
+            self.root.update_idletasks()
         except Exception:
             pass
 
         try:
             return func(self, *args, **kwargs)
         finally:
-            AppProcesamiento.set_estado_global("Listo", "")
+            self.set_estado("Listo", "")
 
     return wrapper
 
@@ -679,6 +706,9 @@ class AppProcesamiento:
         self.ruta_completa = None
         self.modo_activo = None
         self.area_seleccionada = False
+        self._proceso_activo = None
+        self._cola_proceso = None
+        self._cursores_originales = {}
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.root.geometry("900x650")
         self.root.minsize(900, 600)
@@ -686,7 +716,7 @@ class AppProcesamiento:
             "<KP_Enter>",
             lambda e: e.widget.event_generate("<Return>") if isinstance(e.widget, (tk.Entry, tk.Button)) else None,
         )
-        self.root.bind("<Escape>", lambda e: self._resetear())
+        self.root.bind("<Escape>", self._on_escape)
 
         self.filtros = [
             ("Imágenes", "*.jpg *.JPG *.png *.PNG *.bmp *.BMP *.tif *.TIF *.pgm *.PGM *.raw *.RAW"),
@@ -730,9 +760,9 @@ class AppProcesamiento:
             self.color_sample.configure(fg_color="transparent")
 
         if modo:
-            AppProcesamiento.set_estado_global("Herramienta activa. ESC para salir o finalizar.", "crosshair")
+            self.set_estado("Herramienta activa. ESC para salir o finalizar.", "crosshair")
         else:
-            AppProcesamiento.set_estado_global("Listo", "")
+            self.set_estado("Listo", "")
 
     def _resetear(self) -> None:
         """Reinicia la selección y el modo activo reseteando el visor (Ej. Botón Escape)."""
@@ -813,12 +843,56 @@ class AppProcesamiento:
         yM = max(0, min(h, round(y2)))
         return xm, ym, xM, yM
 
-    def _mostrar_ventana_grafico(self, fig: Any, titulo: str) -> None:
-        """Abre un Toplevel simple y muestra una figura de Matplotlib."""
+    def _mostrar_ventana_grafico(self, fig: Any, titulo: str, histograma: Any) -> None:
+        """Abre un Toplevel y muestra una figura de Matplotlib con la opción de escala logarítmica."""
         top = ctk.CTkToplevel(self.root)
         top.title(titulo)
+
+        # Frame de controles en la parte inferior
+        frame_controles = ctk.CTkFrame(top)
+        frame_controles.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=5)
+
+        # Canvas para el gráfico
         canvas = FigureCanvasTkAgg(fig, master=top)
         canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+        ax = fig.gca()
+
+        var_log = ctk.BooleanVar(value=False)
+
+        def actualizar_escala() -> None:
+            # Escala Y (Logarítmica vs Lineal)
+            if var_log.get():
+                ax.set_yscale("log")
+                if isinstance(histograma, tuple):
+                    valores = []
+                    for h in histograma:
+                        h_validos = h[h > 0]
+                        if len(h_validos) > 0:
+                            valores.append(np.min(h_validos))
+                    min_val = min(valores) if valores else 1e-5
+                else:
+                    h_validos = histograma[histograma > 0]
+                    min_val = np.min(h_validos) if len(h_validos) > 0 else 1e-5
+                ax.set_ylim(bottom=min_val * 0.5)
+            else:
+                ax.set_yscale("linear")
+                ax.set_ylim(bottom=0)
+
+            # Auto-escala el límite superior basándose en el máximo valor real (adherencia teórica)
+            if isinstance(histograma, tuple):
+                max_real = max(np.max(h) for h in histograma)
+            else:
+                max_real = np.max(histograma)
+            ax.set_ylim(top=max_real * 1.05)
+
+            canvas.draw()
+
+        chk_log = ctk.CTkCheckBox(
+            frame_controles, text="Escala Logarítmica", variable=var_log, command=actualizar_escala
+        )
+        chk_log.pack(side=tk.LEFT, padx=10, pady=5)
+
         canvas.draw()
 
     def _limpiar_nombre(self, sufijo: str) -> str:
@@ -830,11 +904,15 @@ class AppProcesamiento:
 
     def on_closing(self) -> None:
         """Protocolo de cierre de seguridad."""
+        self.reproduciendo = False
+        if hasattr(self, "_proceso_activo") and self._proceso_activo and self._proceso_activo.is_alive():
+            self._cancelar_operacion_activa()
+
         if self in AppProcesamiento.instancias:
             AppProcesamiento.instancias.remove(self)
 
         try:
-            AppProcesamiento.set_estado_global("Listo", "")
+            self.set_estado("Listo", "")
         except Exception:
             pass
 
@@ -846,16 +924,165 @@ class AppProcesamiento:
         except Exception:
             pass
 
+    def set_estado(self, texto: str, cursor: str) -> None:
+        """Establece el estado y el cursor de forma local a esta instancia."""
+        try:
+            if self.root.winfo_exists():
+                self._set_cursor_recursivo(self.root, cursor)
+                self.lbl_status.configure(text=texto)
+        except Exception:
+            pass
+
+    def _set_cursor_recursivo(self, widget: Any, cursor: str) -> None:
+        """Propaga el cursor recursivamente a todos los widgets del árbol,
+        evitando redibujos de CustomTkinter para prevenir parpadeos.
+        """
+        # Ignoramos widgets de CustomTkinter excepto las ventanas de nivel superior (CTk, CTkToplevel)
+        is_ctk_widget = type(widget).__module__.startswith("customtkinter")
+        is_window = isinstance(widget, (ctk.CTk, ctk.CTkToplevel, tk.Tk, tk.Toplevel))
+
+        if not is_ctk_widget or is_window:
+            wid_id = str(widget)
+            if cursor != "":
+                if wid_id not in self._cursores_originales:
+                    try:
+                        self._cursores_originales[wid_id] = widget.cget("cursor")
+                    except Exception:
+                        self._cursores_originales[wid_id] = ""
+                try:
+                    widget.configure(cursor=cursor)
+                except Exception:
+                    pass
+            else:
+                orig = self._cursores_originales.get(wid_id, "")
+                try:
+                    widget.configure(cursor=orig)
+                except Exception:
+                    pass
+                if wid_id in self._cursores_originales:
+                    try:
+                        del self._cursores_originales[wid_id]
+                    except Exception:
+                        pass
+
+        try:
+            for child in widget.winfo_children():
+                self._set_cursor_recursivo(child, cursor)
+        except Exception:
+            pass
+
     @classmethod
     def set_estado_global(cls, texto: str, cursor: str) -> None:
-        AppProcesamiento.instancias = [i for i in AppProcesamiento.instancias if i.root.winfo_exists()]
-        for inst in AppProcesamiento.instancias:
+        """Mantenido por compatibilidad global."""
+        cls.instancias = [i for i in cls.instancias if i.root.winfo_exists()]
+        for inst in cls.instancias:
             try:
-                if inst.root.winfo_exists():
-                    inst.root.configure(cursor=cursor)
-                    inst.lbl_status.configure(text=texto)
+                inst.set_estado(texto, cursor)
             except Exception:
                 continue
+
+    def _on_escape(self, event: Optional[Any] = None) -> None:
+        """Maneja el evento de la tecla Escape."""
+        if hasattr(self, "_proceso_activo") and self._proceso_activo and self._proceso_activo.is_alive():
+            self._cancelar_operacion_activa()
+        else:
+            self._resetear()
+
+    def _cancelar_operacion_activa(self) -> None:
+        """Cancela el proceso de cálculo activo usando terminación nativa del OS."""
+        if hasattr(self, "_proceso_activo") and self._proceso_activo and self._proceso_activo.is_alive():
+            try:
+                self._proceso_activo.terminate()
+                self._proceso_activo.join()
+            except Exception:
+                pass
+            self._limpiar_proceso_activo()
+            self.set_estado("Listo", "")
+            messagebox.showinfo("Operación", "Operación cancelada", parent=self.root)
+
+    def _limpiar_proceso_activo(self) -> None:
+        """Limpia las referencias y recursos del proceso activo."""
+        if hasattr(self, "_proceso_activo") and self._proceso_activo:
+            try:
+                if self._proceso_activo.is_alive():
+                    self._proceso_activo.terminate()
+                self._proceso_activo.close()
+            except Exception:
+                pass
+            self._proceso_activo = None
+        self._cola_proceso = None
+
+    def _ejecutar_tarea_proceso(
+        self, funcion_core: Callable, on_success: Callable[[Any], None], on_error: Callable[[str], None], *args: Any
+    ) -> None:
+        """Ejecuta una función core en un proceso separado y monitorea su finalización."""
+        if hasattr(self, "_proceso_activo") and self._proceso_activo and self._proceso_activo.is_alive():
+            messagebox.showwarning(
+                "Procesamiento",
+                "Ya hay una operación en curso en esta ventana. Espere o cancélela con ESC.",
+                parent=self.root
+            )
+            return
+
+        self.set_estado("Procesando...", "watch")
+
+        try:
+            self.root.update_idletasks()
+        except Exception:
+            pass
+
+        self._cola_proceso = multiprocessing.Queue()
+
+        self._proceso_activo = multiprocessing.Process(
+            target=_funcion_trabajadora_proceso,
+            args=(self._cola_proceso, funcion_core, self.matriz_actual, *args),
+            daemon=True
+        )
+        self._proceso_activo.start()
+
+        # Comenzar el monitoreo periódico
+        self.root.after(100, lambda: self._monitorear_proceso(on_success, on_error))
+
+    def _monitorear_proceso(self, on_success: Callable[[Any], None], on_error: Callable[[str], None]) -> None:
+        """Chequea el estado del proceso en ejecución de forma periódica."""
+        if not self.root.winfo_exists():
+            self._limpiar_proceso_activo()
+            return
+
+        # Si ya no hay un proceso o cola activa, ignoramos llamadas tardías/duplicadas
+        if self._proceso_activo is None or self._cola_proceso is None:
+            return
+
+        if self._proceso_activo.is_alive():
+            if not self._cola_proceso.empty():
+                self._procesar_resultado_cola(on_success, on_error)
+            else:
+                self.root.after(100, lambda: self._monitorear_proceso(on_success, on_error))
+        else:
+            self._procesar_resultado_cola(on_success, on_error)
+
+    def _procesar_resultado_cola(self, on_success: Callable[[Any], None], on_error: Callable[[str], None]) -> None:
+        """Recupera los datos de la cola del proceso y ejecuta los callbacks."""
+        try:
+            if self._cola_proceso and not self._cola_proceso.empty():
+                status, res = self._cola_proceso.get_nowait()
+                self._limpiar_proceso_activo()
+                self.set_estado("Listo", "")
+
+                if status == "SUCCESS":
+                    on_success(res)
+                elif status == "CANCELLED":
+                    messagebox.showinfo("Operación", "Operación cancelada", parent=self.root)
+                elif status == "ERROR":
+                    on_error(res)
+            else:
+                self._limpiar_proceso_activo()
+                self.set_estado("Listo", "")
+                on_error("El proceso de cálculo finalizó inesperadamente.")
+        except Exception as e:
+            self._limpiar_proceso_activo()
+            self.set_estado("Listo", "")
+            on_error(f"Error al recuperar el resultado: {str(e)}")
 
     # --- Operaciones Globales y Archivos ---
 
@@ -875,7 +1102,7 @@ class AppProcesamiento:
             self.root.title(f"Visualizador - {self.nombre_archivo}")
             self._dibujar()
             self.gestor_menus.cambiar_estado(tk.NORMAL)
-            AppProcesamiento.set_estado_global("Listo", "")
+            self.set_estado("Listo", "")
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo cargar la imagen: {str(e)}")
             self.cerrar_imagen()
@@ -909,16 +1136,21 @@ class AppProcesamiento:
 
     # --- Motor Genérico de Operaciones ---
 
-    @feedback_visual
     def _ejecutar_operacion_core(self, funcion_core: Callable, sufijo: str, *args: Any) -> None:
-        """Ejecuta una función core de forma asíncrona sobre la matriz actual y abre una nueva instancia."""
+        """Ejecuta una función core de forma asíncrona en un proceso y abre una nueva instancia."""
         if self.matriz_actual is None:
             return
-        try:
-            res = funcion_core(self.matriz_actual, *args)
-            AppProcesamiento(ctk.CTkToplevel(self.root), res, self._limpiar_nombre(sufijo))
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
+
+        def on_success(res: Any) -> None:
+            try:
+                AppProcesamiento(ctk.CTkToplevel(self.root), res, self._limpiar_nombre(sufijo))
+            except Exception as e:
+                messagebox.showerror("Error", f"Error al abrir la ventana: {str(e)}")
+
+        def on_error(err_msg: str) -> None:
+            messagebox.showerror("Error", err_msg)
+
+        self._ejecutar_tarea_proceso(funcion_core, on_success, on_error, *args)
 
     # --- Comandos TP0 ---
 
@@ -950,9 +1182,11 @@ class AppProcesamiento:
         if self.matriz_actual is None:
             return
 
-        self.root.configure(cursor="watch")
-        self.lbl_status.configure(text="Calculando promedio...")
-        self.root.update_idletasks()
+        self.set_estado("Calculando promedio...", "watch")
+        try:
+            self.root.update_idletasks()
+        except Exception:
+            pass
 
         try:
             coords = self._obtener_roi_validada()
@@ -969,7 +1203,7 @@ class AppProcesamiento:
             messagebox.showerror("Error", str(e))
             self.lbl_status.configure(text="Listo")
         finally:
-            self.root.configure(cursor="")
+            self.set_estado("Listo", "")
 
     # --- Comandos TP1 ---
 
@@ -1037,18 +1271,26 @@ class AppProcesamiento:
         if tamano is not None:
             self._ejecutar_operacion_core(funciones.aplicar_filtro_realce_de_bordes, "f_bordes", tamano)
 
-    @feedback_visual
     def mostrar_histograma(self) -> None:
         if self.matriz_actual is None:
             return
-        try:
-            nombre = self.nombre_archivo if self.nombre_archivo else "Sin título"
-            titulo_full = f"Histograma - {nombre}"
-            histograma = funciones.obtener_histograma(self.matriz_actual)
-            fig = preparar_histograma(histograma, titulo=titulo_full)
-            self._mostrar_ventana_grafico(fig, titulo_full)
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
+        nombre_ventana = self.root.title()
+
+        def on_success(histograma: Any) -> None:
+            try:
+                fig = preparar_histograma(histograma, titulo=nombre_ventana)
+                self._mostrar_ventana_grafico(fig, nombre_ventana, histograma)
+            except Exception as e:
+                messagebox.showerror("Error", f"Error al generar histograma: {str(e)}")
+
+        def on_error(err_msg: str) -> None:
+            messagebox.showerror("Error", err_msg)
+
+        # Si la imagen es RGB (3 canales o más), calculamos por separado cada canal
+        if self.matriz_actual.ndim == 3 and self.matriz_actual.shape[2] >= 3:
+            self._ejecutar_tarea_proceso(_obtener_histogramas_rgb, on_success, on_error)
+        else:
+            self._ejecutar_tarea_proceso(funciones.obtener_histograma, on_success, on_error)
 
     # --- Comandos TP2 ---
 
@@ -1115,10 +1357,11 @@ class AppProcesamiento:
     # --- Comandos TP3 ---
 
     def canny(self) -> None:
-        """Maneja la ejecución del detector de bordes Canny con sugerencia de umbrales."""
+        """Maneja la ejecución del detector de bordes Canny con sugerencia de umbrales genéricos."""
         if self.matriz_actual is None:
             return
-        t1_sug, t2_sug = funciones._sugerir_umbrales_canny(self.matriz_actual)
+        t1_sug = 50.0
+        t2_sug = 100.0
 
         t2 = pedir_float_sug("Canny", f"Umbral superior (t2) [Sugerido: {t2_sug:.2f}]:", t2_sug, minvalue=0.0)
         if t2 is None:

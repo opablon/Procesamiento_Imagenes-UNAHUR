@@ -21,6 +21,8 @@ El proyecto se desarrolla bajo un enfoque académico, implementando la lógica d
 * **Renderizado y Visor:** Matplotlib (FigureCanvasTkAgg y RectangleSelector)
 * **Análisis Estático y Tipado:** Ruff (Linter/Formateador) y Pyrefly (Type Checker)
 * **Lenguaje:** Python 3 (Tipado Estricto)
+* **Multiventana Asíncrona (Procesos):** Uso de procesos independientes (`multiprocessing.Process`) por cada ventana para realizar operaciones pesadas en segundo plano sin congelar la GUI general y evitando la contención del GIL.
+* **Control de Cancelación:** Finalización nativa del subproceso al presionar la tecla `Esc`, cancelando la operación de forma inmediata e independiente.
 
 ## 📂 Estructura del Repositorio
 * `core/`: Contiene `funciones.py` con la lógica matemática pura. Es el motor de procesamiento.

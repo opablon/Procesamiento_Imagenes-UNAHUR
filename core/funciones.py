@@ -467,6 +467,9 @@ def aplicar_ruido_aditivo_gaussiano(matriz_original: np.ndarray, densidad: float
     Sigue el modelo aditivo: Ic(i,j) = I(i,j) + η(i,j) para (i,j) ∈ D,
     donde η es el ruido gaussiano y D es el conjunto de píxeles contaminados.
     """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
     if sigma < 0:
         raise ValueError(f"El desvío (sigma={sigma}) debe ser mayor o igual a 0.")
     if not (0 <= densidad <= 100):
@@ -507,6 +510,9 @@ def aplicar_ruido_multiplicativo_exponencial(
     Sigue el modelo: Ic(i,j) = I(i,j) * η(i,j) para (i,j) ∈ D,
     donde η es una variable aleatoria con distribución exponencial de parámetro λ.
     """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
     if lambd <= 0:
         raise ValueError("El parámetro lambda debe ser mayor a 0.")
     if not (0 <= porcentaje <= 100):
@@ -543,6 +549,9 @@ def aplicar_ruido_sal_y_pimienta(matriz_original: np.ndarray, densidad: float) -
     """
     Sustituye píxeles por 0 (pimienta) o 255 (sal) según una densidad p.
     """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
     if not (0 <= densidad <= 100):
         raise ValueError("La densidad debe estar entre 0 y 100.")
 
@@ -580,7 +589,6 @@ def _aplicar_convolucion_manual(matriz: np.ndarray, mascara: np.ndarray) -> np.n
 
     for y in range(offset, alto - offset):
         for x in range(offset, ancho - offset):
-
             if matriz.ndim == 3:  # Caso RGB
                 for c in range(3):
                     acumulado = 0.0
@@ -610,6 +618,9 @@ def aplicar_filtro_media(matriz_original: np.ndarray, tamano_mascara: int) -> np
     Consiste en pasar una máscara con pesos (núcleo) donde todos los elementos valen 1/N.
     Reemplaza el centro por el promedio de la vecindad.
     """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
     if tamano_mascara % 2 == 0:
         raise ValueError("El tamaño de la máscara debe ser impar.")
 
@@ -630,6 +641,9 @@ def aplicar_filtro_mediana(matriz_original: np.ndarray, tamano_mascara: int) -> 
     Consiste en ordenar los valores de la vecindad y tomar el del medio
     Efectivo para eliminar ruido Sal y Pimienta.
     """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
     if tamano_mascara % 2 == 0:
         raise ValueError("El tamaño de la máscara debe ser impar.")
 
@@ -693,6 +707,9 @@ def aplicar_filtro_mediana_ponderada(matriz_original: np.ndarray, tamano_mascara
     A diferencia de la mediana simple, cada píxel de la vecindad se repite
     según un peso definido en una máscara, dándole mayor importancia al centro.
     """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
     if tamano_mascara % 2 == 0:
         raise ValueError("El tamaño de la máscara debe ser impar.")
 
@@ -790,6 +807,9 @@ def aplicar_filtro_gaussiano(matriz_original: np.ndarray, sigma: float) -> np.nd
     Reemplaza el valor original del pixel con la suma de los valores
     originales multiplicados por los pesos de la máscara.
     """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
     if sigma <= 0:
         raise ValueError("El desvío estándar sigma debe ser mayor a 0.")
 
@@ -847,6 +867,9 @@ def aplicar_filtro_realce_de_bordes(matriz_original: np.ndarray, tamano_mascara:
     Realce de Bordes con máscara de tamaño variable.
     Destaca detalles intensificando las transiciones de intensidad.
     """
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+
     if tamano_mascara % 2 == 0:
         raise ValueError("El tamaño de la máscara debe ser impar.")
 
@@ -879,13 +902,11 @@ def _obtener_magnitud_gradiente(gradiente_x: np.ndarray, gradiente_y: np.ndarray
 
 def aplicar_operador_prewitt(matriz_original: np.ndarray) -> np.ndarray:
     """Aplica Prewitt devolviendo la magnitud formateada a 8 bits."""
-    mascara_x = np.array([[-1.0, 0.0, 1.0],
-                          [-1.0, 0.0, 1.0],
-                          [-1.0, 0.0, 1.0]], dtype=float)
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+    mascara_x = np.array([[-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0]], dtype=float)
 
-    mascara_y = np.array([[-1.0, -1.0, -1.0],
-                          [0.0, 0.0, 0.0],
-                          [1.0, 1.0, 1.0]], dtype=float)
+    mascara_y = np.array([[-1.0, -1.0, -1.0], [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], dtype=float)
 
     gradiente_x = _aplicar_convolucion_manual(matriz_original, mascara_x)
     gradiente_y = _aplicar_convolucion_manual(matriz_original, mascara_y)
@@ -899,13 +920,11 @@ def aplicar_operador_prewitt(matriz_original: np.ndarray) -> np.ndarray:
 
 def aplicar_operador_sobel(matriz_original: np.ndarray) -> np.ndarray:
     """Aplica Sobel devolviendo la magnitud formateada a 8 bits."""
-    mascara_x = np.array([[-1.0, 0.0, 1.0],
-                          [-2.0, 0.0, 2.0],
-                          [-1.0, 0.0, 1.0]], dtype=float)
+    if not _es_imagen_valida(matriz_original):
+        raise ValueError("Imagen no soportada.")
+    mascara_x = np.array([[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]], dtype=float)
 
-    mascara_y = np.array([[-1.0, -2.0, -1.0],
-                          [0.0, 0.0, 0.0],
-                          [1.0, 2.0, 1.0]], dtype=float)
+    mascara_y = np.array([[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]], dtype=float)
 
     gradiente_x = _aplicar_convolucion_manual(matriz_original, mascara_x)
     gradiente_y = _aplicar_convolucion_manual(matriz_original, mascara_y)
@@ -923,9 +942,7 @@ def _obtener_mascara_laplaciana(matriz_original: np.ndarray) -> np.ndarray:
     Retorna la matriz con valores flotantes (con signo) para evaluar cruces por cero.
     """
     # Máscara de Laplace: 4*I(x,y) - I(vecinos)
-    laplaciana_3x3 = np.array([[ 0.0, -1.0,  0.0],
-                               [-1.0,  4.0, -1.0],
-                               [ 0.0, -1.0,  0.0]], dtype=float)
+    laplaciana_3x3 = np.array([[0.0, -1.0, 0.0], [-1.0, 4.0, -1.0], [0.0, -1.0, 0.0]], dtype=float)
 
     return _aplicar_convolucion_manual(matriz_original, laplaciana_3x3)
 
@@ -954,14 +971,13 @@ def _detectar_cruces_por_cero(matriz_flotante: np.ndarray, umbral: float) -> np.
 
                 # Caso 1: Cambio de signo directo (+,-) o (-,+)
                 if (pixel_actual * pixel_derecho) < 0:
-
                     # Se calcula la pendiente (|a+b|) y se compara con el umbral
                     if abs(pixel_actual - pixel_derecho) >= umbral:
                         resultado[y, x] = 255
 
                 # Caso 2: Cero intermedio (+,0,-) o (-,0,+)
                 elif pixel_derecho == 0 and x + 2 < ancho:
-                    pixel_derecho_2 = matriz_laplaciana[y, x + 2] # Evaluamos el pixel que sigue al cero
+                    pixel_derecho_2 = matriz_laplaciana[y, x + 2]  # Evaluamos el pixel que sigue al cero
                     if (pixel_actual * pixel_derecho_2) < 0:
                         if abs(pixel_actual - pixel_derecho_2) >= umbral:
                             resultado[y, x] = 255
@@ -985,6 +1001,7 @@ def _detectar_cruces_por_cero(matriz_flotante: np.ndarray, umbral: float) -> np.
 
 
 # --- MÉTODO DEL LAPLACIANO ---
+
 
 def aplicar_mascara_laplaciana(matriz_original: np.ndarray) -> np.ndarray:
     """
@@ -1028,8 +1045,8 @@ def _generar_mascara_log(sigma: float, tamano_mascara: int) -> np.ndarray:
     mascara = np.zeros((tamano_mascara, tamano_mascara), dtype=float)
 
     # Optimizaciones de la constante
-    sigma_al_cuadrado = sigma ** 2
-    sigma_al_cubo = sigma ** 3
+    sigma_al_cuadrado = sigma**2
+    sigma_al_cubo = sigma**3
     coeficiente = 1.0 / (2.0 * np.pi * sigma_al_cubo)
 
     # Variable para acumular la suma de todos los coeficientes calculados.
@@ -1063,6 +1080,7 @@ def _generar_mascara_log(sigma: float, tamano_mascara: int) -> np.ndarray:
 
 
 # --- LAPLACIANO GAUSSIANO (MARR-HILDRETH) ---
+
 
 def aplicar_marr_hildreth(matriz_original: np.ndarray, sigma: float, umbral: float) -> np.ndarray:
     """
@@ -1099,9 +1117,7 @@ def aplicar_marr_hildreth(matriz_original: np.ndarray, sigma: float, umbral: flo
 
 
 def aplicar_difusion_isotropica(
-    matriz_original: np.ndarray,
-    iteraciones: int,
-    constante_lambda: float = 0.25
+    matriz_original: np.ndarray, iteraciones: int, constante_lambda: float = 0.25
 ) -> np.ndarray:
     """
     Resuelve la ecuación del calor de conducción isotrópica mediante diferencias finitas.
@@ -1158,11 +1174,7 @@ def aplicar_difusion_isotropica(
 
 
 def aplicar_difusion_anisotropica(
-    matriz_original: np.ndarray,
-    iteraciones: int,
-    sigma: float,
-    constante_lambda: float = 0.25,
-    metodo: str = 'leclerc'
+    matriz_original: np.ndarray, iteraciones: int, sigma: float, constante_lambda: float = 0.25, metodo: str = "leclerc"
 ) -> np.ndarray:
     """
     Aplica la ecuación de difusión anisotrópica de Perona-Malik.
@@ -1200,18 +1212,18 @@ def aplicar_difusion_anisotropica(
                     dif_oeste = capa[y, x + 1] - capa[y, x]
 
                     # Cálculo de coeficientes de conducción (c)
-                    if metodo.lower() == 'leclerc':
+                    if metodo.lower() == "leclerc":
                         # Función Exponencial: Privilegia bordes de alto contraste
-                        coef_norte = np.exp(-(dif_norte / sigma)**2)
-                        coef_sur = np.exp(-(dif_sur / sigma)**2)
-                        coef_este = np.exp(-(dif_este / sigma)**2)
-                        coef_oeste = np.exp(-(dif_oeste / sigma)**2)
+                        coef_norte = np.exp(-((dif_norte / sigma) ** 2))
+                        coef_sur = np.exp(-((dif_sur / sigma) ** 2))
+                        coef_este = np.exp(-((dif_este / sigma) ** 2))
+                        coef_oeste = np.exp(-((dif_oeste / sigma) ** 2))
                     else:  # Lorentz
                         # Función Racional (Lorentz): Privilegia regiones amplias
-                        coef_norte = 1.0 / (1.0 + (dif_norte / sigma)**2)
-                        coef_sur = 1.0 / (1.0 + (dif_sur / sigma)**2)
-                        coef_este = 1.0 / (1.0 + (dif_este / sigma)**2)
-                        coef_oeste = 1.0 / (1.0 + (dif_oeste / sigma)**2)
+                        coef_norte = 1.0 / (1.0 + (dif_norte / sigma) ** 2)
+                        coef_sur = 1.0 / (1.0 + (dif_sur / sigma) ** 2)
+                        coef_este = 1.0 / (1.0 + (dif_este / sigma) ** 2)
+                        coef_oeste = 1.0 / (1.0 + (dif_oeste / sigma) ** 2)
 
                     # Sumatoria de flujos direccionales limitados por sus coeficientes
                     variacion_total = (
@@ -1233,11 +1245,7 @@ def aplicar_difusion_anisotropica(
     return _recortar_a_8bit(img)
 
 
-def aplicar_filtro_bilateral(
-    matriz_original: np.ndarray,
-    sigma_s: float,
-    sigma_r: float
-) -> np.ndarray:
+def aplicar_filtro_bilateral(matriz_original: np.ndarray, sigma_s: float, sigma_r: float) -> np.ndarray:
     """
     Aplica el filtro bilateral para suavizado con preservación de bordes.
 
@@ -1278,7 +1286,6 @@ def aplicar_filtro_bilateral(
     # Recorrido pixel a pixel de la imagen
     for y in range(offset, alto - offset):
         for x in range(offset, ancho - offset):
-
             if canales == 3:
                 # --- CASO COLOR (VECTORIAL) ---
                 valor_central = matriz_float[y, x]  # Vector [R, G, B] del pixel central
@@ -1292,9 +1299,9 @@ def aplicar_filtro_bilateral(
 
                         # Norma euclídea al cuadrado en el espacio de color RGB
                         distancia_color_sq = (
-                            (valor_central[0] - valor_vecino[0])**2 +
-                            (valor_central[1] - valor_vecino[1])**2 +
-                            (valor_central[2] - valor_vecino[2])**2
+                            (valor_central[0] - valor_vecino[0]) ** 2
+                            + (valor_central[1] - valor_vecino[1]) ** 2
+                            + (valor_central[2] - valor_vecino[2]) ** 2
                         )
 
                         # Similitud en rango/cromática
@@ -1322,7 +1329,7 @@ def aplicar_filtro_bilateral(
                         valor_vecino = matriz_float[y + my, x + mx]
 
                         # Diferencia de intensidad escalar al cuadrado
-                        g_r = np.exp(-((valor_central - valor_vecino)**2) / (2 * sigma_r**2))
+                        g_r = np.exp(-((valor_central - valor_vecino) ** 2) / (2 * sigma_r**2))
 
                         # Peso conjunto
                         peso = kernel_espacial[my + offset, mx + offset] * g_r
@@ -1431,7 +1438,7 @@ def _obtener_umbral_otsu(matriz_original: np.ndarray) -> int:
         m[t] = acumulado_m
 
     # Promedio ponderado global mG (es el último valor de m)
-    mG = m[L-1] if L > 0 else 0.0
+    mG = m[L - 1] if L > 0 else 0.0
 
     # Computar varianza entre clases sigma_B^2(t)
     sigma_B_sq = np.zeros(L, dtype=float)
@@ -1441,7 +1448,7 @@ def _obtener_umbral_otsu(matriz_original: np.ndarray) -> int:
 
         # Evitar división por cero si una clase está vacía
         if denominador > 0:
-            numerador = (mG * P1[t] - m[t])**2
+            numerador = (mG * P1[t] - m[t]) ** 2
             sigma_B_sq[t] = numerador / denominador
         else:
             sigma_B_sq[t] = 0
@@ -1501,19 +1508,14 @@ def segmentar_color_por_bandas(matriz_original: np.ndarray) -> np.ndarray:
 # --- OBTENER DIRECCIÓN DEL GRADIENTE ---
 
 
-def _obtener_direccion_gradiente(
-    gradiente_x: np.ndarray,
-    gradiente_y: np.ndarray
-) -> np.ndarray:
+def _obtener_direccion_gradiente(gradiente_x: np.ndarray, gradiente_y: np.ndarray) -> np.ndarray:
     """
     Calcula el ángulo analítico del gradiente: arcotangente(Iy / Ix).
     Si Ix es 0, el ángulo se fija de forma segura en PI/2 (90 grados).
     """
     direccion = np.full_like(gradiente_x, np.pi / 2, dtype=float)
     mascara_no_cero = gradiente_x != 0
-    direccion[mascara_no_cero] = np.arctan(
-        gradiente_y[mascara_no_cero] / gradiente_x[mascara_no_cero]
-    )
+    direccion[mascara_no_cero] = np.arctan(gradiente_y[mascara_no_cero] / gradiente_x[mascara_no_cero])
 
     return direccion
 
@@ -1547,10 +1549,7 @@ def _discretizar_direcciones(direccion: np.ndarray) -> np.ndarray:
 # --- SUPRESIÓN DE NO MÁXIMOS ---
 
 
-def _supresion_no_maximos(
-    magnitud: np.ndarray,
-    angulo_discreto: np.ndarray
-) -> np.ndarray:
+def _supresion_no_maximos(magnitud: np.ndarray, angulo_discreto: np.ndarray) -> np.ndarray:
     """
     Anula píxeles que no son máximos locales en la dirección de su gradiente.
     """
@@ -1588,18 +1587,15 @@ def _supresion_no_maximos(
 
 # --- OBTENER VECINOS VÁLIDOS ---
 
+
 def _obtener_vecinos_validos(
-    x: int,
-    y: int,
-    alto: int,
-    ancho: int,
-    conectitud: str = '4-conexo'
+    x: int, y: int, alto: int, ancho: int, conectitud: str = "4-conexo"
 ) -> List[Tuple[int, int]]:
     """Devuelve las coordenadas de los vecinos válidos dentro de la imagen."""
     vecinos = []
     desplazamientos = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
-    if conectitud == '8-conexo':
+    if conectitud == "8-conexo":
         desplazamientos.extend([(-1, -1), (-1, 1), (1, -1), (1, 1)])
 
     for dx, dy in desplazamientos:
@@ -1613,12 +1609,7 @@ def _obtener_vecinos_validos(
 # --- UMBRALIZACIÓN CON HISTÉRESIS ---
 
 
-def _umbralizacion_con_histeresis(
-    imagen_suprimida: np.ndarray,
-    t1: float,
-    t2: float,
-    conectitud: str
-) -> np.ndarray:
+def _umbralizacion_con_histeresis(imagen_suprimida: np.ndarray, t1: float, t2: float, conectitud: str) -> np.ndarray:
     """
     Clasifica en bordes fuertes y débiles, propagando la conectividad
     hasta que no se registren cambios estructurales en la matriz.
@@ -1643,13 +1634,7 @@ def _umbralizacion_con_histeresis(
             for columna in range(ancho):
                 if imagen_bordes[fila, columna] == BORDE_DEBIL:
                     # columna es la coordenada x (ancho), fila es y (alto)
-                    vecinos = _obtener_vecinos_validos(
-                        columna,
-                        fila,
-                        alto,
-                        ancho,
-                        conectitud
-                    )
+                    vecinos = _obtener_vecinos_validos(columna, fila, alto, ancho, conectitud)
                     for ncol, nfila in vecinos:
                         if imagen_bordes[nfila, ncol] == BORDE_FUERTE:
                             imagen_bordes[fila, columna] = BORDE_FUERTE
@@ -1664,22 +1649,17 @@ def _umbralizacion_con_histeresis(
 
 
 def aplicar_detector_canny(
-    imagen_suavizada: np.ndarray,
-    t1: float,
-    t2: float,
-    conectitud: str = '4-conexo'
+    imagen_suavizada: np.ndarray, t1: float, t2: float, conectitud: str = "4-conexo"
 ) -> np.ndarray:
     """
     Algoritmo de Canny.
     Requiere una matriz de entrada previamente suavizada.
     """
+    if not _es_imagen_valida(imagen_suavizada):
+        raise ValueError("Imagen no soportada.")
     # Operadores de Sobel
-    mascara_x = np.array(
-        [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]], dtype=float
-    )
-    mascara_y = np.array(
-        [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]], dtype=float
-    )
+    mascara_x = np.array([[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]], dtype=float)
+    mascara_y = np.array([[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]], dtype=float)
 
     if imagen_suavizada.ndim == 3:
         alto, ancho, canales = imagen_suavizada.shape
@@ -1688,7 +1668,6 @@ def aplicar_detector_canny(
 
         # Se procesa cada canal como una imagen en escala de grises
         for c in range(canales):
-
             # Obtención de gradientes X e Y
             Ix = _aplicar_convolucion_manual(imagen_suavizada[:, :, c], mascara_x)
             Iy = _aplicar_convolucion_manual(imagen_suavizada[:, :, c], mascara_y)
@@ -1720,12 +1699,7 @@ def aplicar_detector_canny(
     imagen_suprimida = _supresion_no_maximos(magnitud, angulo_discreto)
 
     # Umbralización con histéresis y conectividad final
-    imagen_bordes = _umbralizacion_con_histeresis(
-        imagen_suprimida,
-        t1,
-        t2,
-        conectitud=conectitud
-    )
+    imagen_bordes = _umbralizacion_con_histeresis(imagen_suprimida, t1, t2, conectitud=conectitud)
 
     return imagen_bordes
 
@@ -1739,13 +1713,9 @@ def _sugerir_umbrales_canny(matriz_original: np.ndarray) -> Tuple[float, float]:
     t2 se obtiene mediante el método de Otsu sobre la magnitud del gradiente de Sobel sin escalar.
     t1 se sugiere como el 30% de t2 (0.3 * t2).
     """
-    mascara_x = np.array([[-1.0, 0.0, 1.0],
-                          [-2.0, 0.0, 2.0],
-                          [-1.0, 0.0, 1.0]], dtype=float)
+    mascara_x = np.array([[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]], dtype=float)
 
-    mascara_y = np.array([[-1.0, -2.0, -1.0],
-                          [0.0, 0.0, 0.0],
-                          [1.0, 2.0, 1.0]], dtype=float)
+    mascara_y = np.array([[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]], dtype=float)
 
     # Obtención de gradientes X e Y
     Ix = _aplicar_convolucion_manual(matriz_original, mascara_x)
@@ -1764,24 +1734,52 @@ def _sugerir_umbrales_canny(matriz_original: np.ndarray) -> Tuple[float, float]:
 # --- DETECTOR DE BORDES SUSAN ---
 
 
-def aplicar_detector_susan(
-    imagen: np.ndarray,
-    t: float = 15.0,
-    tolerancia: float = 0.15
-) -> tuple:
+def aplicar_detector_susan(imagen: np.ndarray, t: float = 15.0, tolerancia: float = 0.15) -> tuple:
     """
     Detector de bordes y esquinas S.U.S.A.N.
     Retorna dos matrices: mapa de bordes y mapa de esquinas.
     """
+    if not _es_imagen_valida(imagen):
+        raise ValueError("Imagen no soportada.")
     # Definición geométrica de la máscara circular de 37 pixels
     desplazamientos = [
-                            (-3, -1), (-3, 0), (-3, 1),
-                  (-2, -2), (-2, -1), (-2, 0), (-2, 1), (-2, 2),
-        (-1, -3), (-1, -2), (-1, -1), (-1, 0), (-1, 1), (-1, 2), (-1, 3),
-        (0, -3),  (0, -2),  (0, -1),  (0, 0),  (0, 1),  (0, 2),  (0, 3),
-        (1, -3),  (1, -2),  (1, -1),  (1, 0),  (1, 1),  (1, 2),  (1, 3),
-                  (2, -2),  (2, -1),  (2, 0),  (2, 1),  (2, 2),
-                            (3, -1),  (3, 0),  (3, 1)
+        (-3, -1),
+        (-3, 0),
+        (-3, 1),
+        (-2, -2),
+        (-2, -1),
+        (-2, 0),
+        (-2, 1),
+        (-2, 2),
+        (-1, -3),
+        (-1, -2),
+        (-1, -1),
+        (-1, 0),
+        (-1, 1),
+        (-1, 2),
+        (-1, 3),
+        (0, -3),
+        (0, -2),
+        (0, -1),
+        (0, 0),
+        (0, 1),
+        (0, 2),
+        (0, 3),
+        (1, -3),
+        (1, -2),
+        (1, -1),
+        (1, 0),
+        (1, 1),
+        (1, 2),
+        (1, 3),
+        (2, -2),
+        (2, -1),
+        (2, 0),
+        (2, 1),
+        (2, 2),
+        (3, -1),
+        (3, 0),
+        (3, 1),
     ]
 
     alto, ancho = imagen.shape[:2]
@@ -1839,14 +1837,12 @@ def aplicar_detector_susan(
 
     return mapa_bordes, mapa_esquinas
 
+
 # --- TRANSFORMADA DE HOUGH ---
 
 
 def _inicializar_espacio_hough(
-    alto: int,
-    ancho: int,
-    res_theta: float,
-    res_rho: float
+    alto: int, ancho: int, res_theta: float, res_rho: float
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float]:
     """
     Subdivide el espacio de parámetros (r, theta) discretizando en una cantidad específica de puntos.
@@ -1866,10 +1862,7 @@ def _inicializar_espacio_hough(
 
 
 def _extraer_maximos_acumulador(
-    acumulador: np.ndarray,
-    thetas: np.ndarray,
-    rhos: np.ndarray,
-    umbral: int
+    acumulador: np.ndarray, thetas: np.ndarray, rhos: np.ndarray, umbral: int
 ) -> List[Tuple[float, float]]:
     """
     Examina el contenido de las celdas del acumulador y devuelve las posiciones 'MAS VOTADAS'
@@ -1888,15 +1881,14 @@ def _extraer_maximos_acumulador(
 
 
 def aplicar_transformada_hough_rectas(
-    imagen_binaria: np.ndarray,
-    res_theta: float = 1.0,
-    res_rho: float = 1.0,
-    umbral: int = 100
+    imagen_binaria: np.ndarray, res_theta: float = 1.0, res_rho: float = 1.0, umbral: int = 100
 ) -> Tuple[np.ndarray, List[Tuple[float, float]], np.ndarray, np.ndarray]:
     """
     Implementa la Transformada de Hough clásica para la detección de rectas.
     Requiere que la imagen de entrada sea binaria (previamente procesada por un detector de bordes).
     """
+    if not _es_imagen_valida(imagen_binaria):
+        raise ValueError("Imagen no soportada.")
     alto, ancho = imagen_binaria.shape
 
     acumulador, thetas, rhos, r_max = _inicializar_espacio_hough(alto, ancho, res_theta, res_rho)
@@ -1932,6 +1924,8 @@ def aplicar_transformada_hough_rectas(
 
 def dibujar_rectas_hough(imagen_fondo: np.ndarray, rectas: list, color: list = [255, 0, 0]) -> np.ndarray:
     """Dibuja las rectas (rho, theta) sobre una copia de la imagen de fondo."""
+    if not _es_imagen_valida(imagen_fondo):
+        raise ValueError("Imagen no soportada.")
     alto, ancho = imagen_fondo.shape[:2]
 
     # Asegurar lienzo RGB
@@ -1962,11 +1956,7 @@ def dibujar_rectas_hough(imagen_fondo: np.ndarray, rectas: list, color: list = [
 # --- CALCULAR Fd(x) ---
 
 
-def _calcular_Fd(
-    color_pixel: np.ndarray,
-    theta_0: np.ndarray,
-    theta_1: np.ndarray
-) -> float:
+def _calcular_Fd(color_pixel: np.ndarray, theta_0: np.ndarray, theta_1: np.ndarray) -> float:
     """
     Evalúa la función de decisión topológica para un píxel dado.
     Utiliza el logaritmo del cociente de las distancias euclidianas.
@@ -1989,9 +1979,7 @@ def _calcular_Fd(
 
 
 def _inicializar_desde_rectangulo(
-    curva_inicial: Tuple[int, int, int, int],
-    alto: int,
-    ancho: int
+    curva_inicial: Tuple[int, int, int, int], alto: int, ancho: int
 ) -> Tuple[np.ndarray, Set[Tuple[int, int]], Set[Tuple[int, int]]]:
     """
     Construye el estado topológico inicial a partir de coordenadas rectangulares.
@@ -2040,9 +2028,7 @@ def _inicializar_desde_rectangulo(
     return phi, L_in, L_out
 
 
-def _inicializar_desde_phi(
-    phi_previa: np.ndarray
-) -> Tuple[np.ndarray, Set[Tuple[int, int]], Set[Tuple[int, int]]]:
+def _inicializar_desde_phi(phi_previa: np.ndarray) -> Tuple[np.ndarray, Set[Tuple[int, int]], Set[Tuple[int, int]]]:
     """
     Reconstruye las listas L_in y L_out directamente escaneando una matriz Phi.
     Útil para continuar iteraciones pausadas o utilizar máscaras precalculadas.
@@ -2068,8 +2054,7 @@ def _inicializar_desde_phi(
 
 
 def _inicializar_estado_segmentacion(
-    matriz: np.ndarray,
-    inicializacion: Union[Tuple[int, int, int, int], np.ndarray]
+    matriz: np.ndarray, inicializacion: Union[Tuple[int, int, int, int], np.ndarray]
 ) -> Tuple[np.ndarray, Set[Tuple[int, int]], Set[Tuple[int, int]]]:
     """Validador de entrada para derivar al inicializador correcto."""
     alto, ancho = matriz.shape[:2]
@@ -2084,10 +2069,7 @@ def _inicializar_estado_segmentacion(
         )
 
 
-def _calcular_estadisticas_topologicas(
-    matriz: np.ndarray,
-    phi: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray]:
+def _calcular_estadisticas_topologicas(matriz: np.ndarray, phi: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """Calcula los promedios de color (theta) de las regiones actuales."""
     pixels_obj = matriz[phi < 0]
     pixels_fondo = matriz[phi > 0]
@@ -2107,10 +2089,7 @@ def _calcular_estadisticas_topologicas(
 
 
 def _ejecutar_paso_segmentacion(
-    matriz: np.ndarray,
-    phi: np.ndarray,
-    L_in: Set[Tuple[int, int]],
-    L_out: Set[Tuple[int, int]]
+    matriz: np.ndarray, phi: np.ndarray, L_in: Set[Tuple[int, int]], L_out: Set[Tuple[int, int]]
 ) -> Tuple[np.ndarray, Set[Tuple[int, int]], Set[Tuple[int, int]], bool]:
     """
     Ejecuta una iteración completa del algoritmo de intercambio de píxeles.
@@ -2133,16 +2112,16 @@ def _ejecutar_paso_segmentacion(
             phi[py, px] = -1
 
             # Promoción de nuevos vecinos de fondo al borde externo
-            for vecino in _obtener_vecinos_validos(px, py, alto, ancho, '4-conexo'):
+            for vecino in _obtener_vecinos_validos(px, py, alto, ancho, "4-conexo"):
                 vx, vy = vecino
                 if phi[vy, vx] == 3:
-                    L_out.add(vecino) # El set ignora si ya existe
+                    L_out.add(vecino)  # El set ignora si ya existe
                     phi[vy, vx] = 1
 
     # --- Limpieza de L_in ---
     for x in L_in.copy():
         px, py = x
-        vecinos = _obtener_vecinos_validos(px, py, alto, ancho, '4-conexo')
+        vecinos = _obtener_vecinos_validos(px, py, alto, ancho, "4-conexo")
 
         # Si un píxel del borde interno ya no toca el externo, se vuelve objeto
         if not any(phi[vy, vx] > 0 for vx, vy in vecinos):
@@ -2161,16 +2140,16 @@ def _ejecutar_paso_segmentacion(
             phi[py, px] = 1
 
             # Promoción de vecinos interiores al borde interno
-            for vecino in _obtener_vecinos_validos(px, py, alto, ancho, '4-conexo'):
+            for vecino in _obtener_vecinos_validos(px, py, alto, ancho, "4-conexo"):
                 vx, vy = vecino
                 if phi[vy, vx] == -3:
-                    L_in.add(vecino) # El set ignora si ya existe
+                    L_in.add(vecino)  # El set ignora si ya existe
                     phi[vy, vx] = -1
 
     # --- Limpieza de L_out ---
     for x in L_out.copy():
         px, py = x
-        vecinos = _obtener_vecinos_validos(px, py, alto, ancho, '4-conexo')
+        vecinos = _obtener_vecinos_validos(px, py, alto, ancho, "4-conexo")
 
         # Si un píxel del borde externo ya no toca el interior, se vuelve fondo
         if not any(phi[vy, vx] < 0 for vx, vy in vecinos):
@@ -2204,27 +2183,19 @@ def _ejecutar_paso_segmentacion(
 
 
 def aplicar_segmentacion_basado_intercambio_pixels(
-    matriz: np.ndarray,
-    inicializacion: Union[Tuple[int, int, int, int], np.ndarray],
-    maximo_iteraciones: int
+    matriz: np.ndarray, inicializacion: Union[Tuple[int, int, int, int], np.ndarray], maximo_iteraciones: int
 ) -> Tuple[np.ndarray, Set[Tuple[int, int]], Set[Tuple[int, int]]]:
     """
     Bucle principal de segmentación. Delega el cálculo iterativo para
     permitir un seguimiento externo del estado topológico.
     """
-    phi, L_in, L_out = _inicializar_estado_segmentacion(
-        matriz,
-        inicializacion
-    )
+    if not _es_imagen_valida(matriz):
+        raise ValueError("Imagen no soportada.")
+    phi, L_in, L_out = _inicializar_estado_segmentacion(matriz, inicializacion)
 
     iteracion = 0
     while iteracion < maximo_iteraciones:
-        phi, L_in, L_out, terminado = _ejecutar_paso_segmentacion(
-            matriz,
-            phi,
-            L_in,
-            L_out
-        )
+        phi, L_in, L_out, terminado = _ejecutar_paso_segmentacion(matriz, phi, L_in, L_out)
 
         if terminado:
             break

@@ -134,6 +134,7 @@ def pedir_opcion(titulo: str, mensaje: str, opciones: list[str]) -> Optional[str
     dialog.wait_window()
     return resultado[0]
 
+
 import re
 
 
@@ -147,7 +148,7 @@ def _obtener_secuencia_archivos(ruta_inicial: str) -> list[str]:
     nombre_archivo = os.path.basename(ruta_inicial)
 
     # Expresión regular para encontrar el último grupo de dígitos antes de la extensión
-    match = re.search(r'(.*?)(\d+)(\.[^.]+)$', nombre_archivo)
+    match = re.search(r"(.*?)(\d+)(\.[^.]+)$", nombre_archivo)
     if not match:
         return [ruta_inicial]
 
@@ -240,11 +241,11 @@ class DialogoConfiguracionContornos(ctk.CTkToplevel):
         lbl_leyenda = ctk.CTkLabel(
             self,
             text="Nota: Para secuencia de imágenes (video), asegúrese de tener archivos\n"
-                 "con nombres ordenados numéricamente de forma ascendente (ej. frame_001.png,\n"
-                 "frame_002.png) y tener abierto el primer archivo de la serie.",
+            "con nombres ordenados numéricamente de forma ascendente (ej. frame_001.png,\n"
+            "frame_002.png) y tener abierto el primer archivo de la serie.",
             font=("Arial", 10, "italic"),
             justify=tk.LEFT,
-            text_color="gray"
+            text_color="gray",
         )
         lbl_leyenda.pack(pady=10, padx=20)
 
@@ -270,9 +271,7 @@ class DialogoConfiguracionContornos(ctk.CTkToplevel):
             return vr, vg, vb
         except ValueError:
             messagebox.showerror(
-                "Error",
-                f"Valores de color {nombre} inválidos. Deben ser enteros entre 0 y 255.",
-                parent=self
+                "Error", f"Valores de color {nombre} inválidos. Deben ser enteros entre 0 y 255.", parent=self
             )
             return None
 
@@ -290,9 +289,7 @@ class DialogoConfiguracionContornos(ctk.CTkToplevel):
                 raise ValueError()
         except ValueError:
             messagebox.showerror(
-                "Error",
-                "La cantidad de iteraciones debe ser un entero positivo mayor a 0.",
-                parent=self
+                "Error", "La cantidad de iteraciones debe ser un entero positivo mayor a 0.", parent=self
             )
             return
 
@@ -309,7 +306,7 @@ class VentanaSecuenciaContornos(ctk.CTkToplevel):
         roi_inicial: Tuple[int, int, int, int],
         color_in: Tuple[int, int, int],
         color_out: Tuple[int, int, int],
-        max_iters: int
+        max_iters: int,
     ) -> None:
         super().__init__(parent)
         self.rutas_archivos = rutas_archivos
@@ -369,10 +366,9 @@ class VentanaSecuenciaContornos(ctk.CTkToplevel):
         f_visor = ctk.CTkFrame(self)
         f_visor.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        self.visor = VisorMatplotlib(f_visor, {
-            "al_seleccionar": self._al_seleccionar_nueva_roi,
-            "al_click": lambda *a: None
-        })
+        self.visor = VisorMatplotlib(
+            f_visor, {"al_seleccionar": self._al_seleccionar_nueva_roi, "al_click": lambda *a: None}
+        )
 
         # Estado de segmentación
         self.idx_actual = 0
@@ -387,8 +383,7 @@ class VentanaSecuenciaContornos(ctk.CTkToplevel):
             self.matriz_frame_original = funciones.cargar_imagen(self.rutas_archivos[self.idx_actual])
             if self.idx_actual == 0 and not usar_phi_previo:
                 self.phi, self.L_in, self.L_out = funciones._inicializar_estado_segmentacion(
-                    self.matriz_frame_original,
-                    self.roi_inicial
+                    self.matriz_frame_original, self.roi_inicial
                 )
             else:
                 assert self.phi is not None
@@ -442,11 +437,8 @@ class VentanaSecuenciaContornos(ctk.CTkToplevel):
 
         # Inicializar segmentación con esta nueva ROI
         self.roi_inicial = (xm, ym, xM, yM)
-        self.phi, self.L_in, self.L_out = (
-            funciones._inicializar_estado_segmentacion(
-                self.matriz_frame_original,
-                self.roi_inicial
-            )
+        self.phi, self.L_in, self.L_out = funciones._inicializar_estado_segmentacion(
+            self.matriz_frame_original, self.roi_inicial
         )
 
         # Desactivar selector y resetear su dibujo en Matplotlib
@@ -461,7 +453,7 @@ class VentanaSecuenciaContornos(ctk.CTkToplevel):
             messagebox.showwarning(
                 "Contornos Activos",
                 "Por favor, seleccione un rectángulo inicial en la imagen para comenzar.",
-                parent=self
+                parent=self,
             )
             return
 
@@ -485,7 +477,7 @@ class VentanaSecuenciaContornos(ctk.CTkToplevel):
             messagebox.showwarning(
                 "Contornos Activos",
                 "Por favor, seleccione un rectángulo inicial en la imagen para comenzar.",
-                parent=self
+                parent=self,
             )
             return
 
@@ -515,7 +507,7 @@ class VentanaSecuenciaContornos(ctk.CTkToplevel):
             messagebox.showwarning(
                 "Contornos Activos",
                 "Por favor, seleccione un rectángulo inicial en la imagen para comenzar.",
-                parent=self
+                parent=self,
             )
             return
 
@@ -531,7 +523,7 @@ class VentanaSecuenciaContornos(ctk.CTkToplevel):
             messagebox.showwarning(
                 "Contornos Activos",
                 "Por favor, seleccione un rectángulo inicial en la imagen para comenzar.",
-                parent=self
+                parent=self,
             )
             return
 
@@ -559,8 +551,7 @@ class VentanaSecuenciaContornos(ctk.CTkToplevel):
             self.visor.set_modo_selector(True)
 
             self.lbl_status.configure(
-                text="Secuencia reiniciada. Seleccione un nuevo rectángulo "
-                     "inicial arrastrando sobre la imagen."
+                text="Secuencia reiniciada. Seleccione un nuevo rectángulo inicial arrastrando sobre la imagen."
             )
         except Exception as e:
             messagebox.showerror("Error", f"Error al reiniciar secuencia: {str(e)}", parent=self)
@@ -570,7 +561,7 @@ class VentanaSecuenciaContornos(ctk.CTkToplevel):
             messagebox.showwarning(
                 "Contornos Activos",
                 "Por favor, seleccione un rectángulo inicial en la imagen para comenzar.",
-                parent=self
+                parent=self,
             )
             return
 
@@ -650,6 +641,7 @@ class VentanaSecuenciaContornos(ctk.CTkToplevel):
             self.reproduciendo = False
             self.lbl_status.configure(text="Operación cancelada")
             messagebox.showinfo("Operación", "Operación cancelada", parent=self)
+
 
 import core.funciones as funciones
 from gui.menus import GestorMenus
@@ -1020,7 +1012,7 @@ class AppProcesamiento:
             messagebox.showwarning(
                 "Procesamiento",
                 "Ya hay una operación en curso en esta ventana. Espere o cancélela con ESC.",
-                parent=self.root
+                parent=self.root,
             )
             return
 
@@ -1036,7 +1028,7 @@ class AppProcesamiento:
         self._proceso_activo = multiprocessing.Process(
             target=_funcion_trabajadora_proceso,
             args=(self._cola_proceso, funcion_core, self.matriz_actual, *args),
-            daemon=True
+            daemon=True,
         )
         self._proceso_activo.start()
 
@@ -1379,6 +1371,15 @@ class AppProcesamiento:
 
     def susan(self) -> None:
         """Maneja la ejecución del detector de características SUSAN."""
+        if self.matriz_actual is None:
+            return
+
+        destino = pedir_opcion("SUSAN - Fondo", "Fondo para dibujar resultados:", ["Fondo negro", "Imagen actual"])
+        if destino is None:
+            return
+
+        img_fondo = self.matriz_actual if destino == "Imagen actual" else None
+
         t = pedir_float("SUSAN", "Umbral de brillo (t) (por defecto 15.0):", minvalue=0.0)
         if t is None:
             return
@@ -1387,7 +1388,9 @@ class AppProcesamiento:
             return
         modo = pedir_opcion("SUSAN", "Visualización:", ["Bordes", "Esquinas", "Ambos"])
         if modo is not None:
-            self._ejecutar_operacion_core(_obtener_resultado_susan_combinado, f"susan_{modo.lower()}", modo, t, tol)
+            self._ejecutar_operacion_core(
+                _obtener_resultado_susan_combinado, f"susan_{modo.lower()}", modo, t, tol, img_fondo
+            )
 
     def hough(self) -> None:
         if self.matriz_actual is None:
@@ -1396,7 +1399,7 @@ class AppProcesamiento:
         destino = pedir_opcion(
             "Hough - Fondo",
             "Fondo para dibujar rectas:",
-            ["Imagen actual (binaria)", "Cargar imagen original de fondo..."]
+            ["Imagen actual (binaria)", "Cargar imagen original de fondo..."],
         )
         if destino is None:
             return
@@ -1419,7 +1422,7 @@ class AppProcesamiento:
                     messagebox.showerror(
                         "Error",
                         "La resolución de la imagen de fondo debe coincidir con la de la imagen binarizada actual.",
-                        parent=self.root
+                        parent=self.root,
                     )
                     return
             except Exception as e:
@@ -1444,7 +1447,7 @@ class AppProcesamiento:
                 "Contornos Activos",
                 "Por favor, seleccione primero una Región de Interés (ROI) "
                 "usando la herramienta 'Seleccionar Región' de TP0.",
-                parent=self.root
+                parent=self.root,
             )
             return
 
@@ -1457,67 +1460,65 @@ class AppProcesamiento:
 
         if modo == "unica":
             self._ejecutar_operacion_core(
-                _obtener_resultado_contornos_activos,
-                "contornos_activos",
-                coords,
-                color_in,
-                color_out,
-                max_iters
+                _obtener_resultado_contornos_activos, "contornos_activos", coords, color_in, color_out, max_iters
             )
         else:
             if not self.ruta_completa:
                 messagebox.showerror(
                     "Error",
                     "Para procesar una secuencia, la imagen actual debe haber sido cargada desde un archivo en disco.",
-                    parent=self.root
+                    parent=self.root,
                 )
                 return
             rutas_secuencia = _obtener_secuencia_archivos(self.ruta_completa)
             if not rutas_secuencia:
-                messagebox.showerror(
-                    "Error",
-                    "No se encontraron imágenes en la secuencia.",
-                    parent=self.root
-                )
+                messagebox.showerror("Error", "No se encontraron imágenes en la secuencia.", parent=self.root)
                 return
 
             # Abrir la ventana de secuencia
-            VentanaSecuenciaContornos(
-                self.root,
-                rutas_secuencia,
-                coords,
-                color_in,
-                color_out,
-                max_iters
-            )
+            VentanaSecuenciaContornos(self.root, rutas_secuencia, coords, color_in, color_out, max_iters)
+
 
 # --- Wrappers de ejecución para TP3 ---
 
 
-def _obtener_resultado_susan_combinado(imagen: np.ndarray, modo: str, t: float, tolerancia: float) -> np.ndarray:
-    """Ejecuta el detector SUSAN y dibuja los resultados sobre la imagen original."""
+def _obtener_resultado_susan_combinado(
+    imagen: np.ndarray, modo: str, t: float, tolerancia: float, imagen_fondo: Optional[np.ndarray] = None
+) -> np.ndarray:
+    """Ejecuta el detector SUSAN y dibuja los resultados sobre fondo negro o sobre un fondo específico.
+
+    Parámetros:
+        imagen: La imagen actual sobre la cual se aplica el detector SUSAN.
+        modo: El modo de visualización ("Bordes", "Esquinas" o "Ambos").
+        t: Umbral de brillo para el detector SUSAN.
+        tolerancia: Tolerancia para la clasificación en el detector SUSAN.
+        imagen_fondo: Opcional. Imagen de fondo sobre la cual se dibujarán los resultados.
+
+    Retorna:
+        Matriz de la imagen resultante con los bordes y/o esquinas dibujados.
+    """
     mapa_bordes, mapa_esquinas = funciones.aplicar_detector_susan(imagen, t, tolerancia)
 
-    # Preparar lienzo a color copiando la imagen original
-    if imagen.ndim == 2:
-        resultado = np.stack((imagen,) * 3, axis=-1)
+    # Si no se especificó un fondo, usamos un lienzo negro de 3 canales
+    if imagen_fondo is None:
+        resultado = np.zeros((imagen.shape[0], imagen.shape[1], 3), dtype=np.uint8)
     else:
-        resultado = imagen.copy()
+        if imagen_fondo.ndim == 2:
+            resultado = np.stack((imagen_fondo,) * 3, axis=-1)
+        else:
+            resultado = imagen_fondo.copy()
 
     # Inyectar colores directamente donde las máscaras dieron positivo (255)
     if modo in ["Bordes", "Ambos"]:
-        resultado[mapa_bordes == 255] = [0, 255, 0] # Bordes en Verde
+        resultado[mapa_bordes == 255] = [0, 255, 0]  # Bordes en Verde
     if modo in ["Esquinas", "Ambos"]:
-        resultado[mapa_esquinas == 255] = [255, 0, 0] # Esquinas en Rojo
+        resultado[mapa_esquinas == 255] = [255, 0, 0]  # Esquinas en Rojo
 
     return resultado
 
 
 def _obtener_resultado_hough(
-    imagen: np.ndarray,
-    res_theta: float,
-    umbral_hough: int,
-    imagen_fondo: Optional[np.ndarray] = None
+    imagen: np.ndarray, res_theta: float, umbral_hough: int, imagen_fondo: Optional[np.ndarray] = None
 ) -> np.ndarray:
     """Halla las rectas mediante Hough directamente sobre la imagen binarizada y las dibuja."""
     # Aplicar núcleo de Hough directamente a la imagen actual (ya binarizada)
@@ -1535,7 +1536,7 @@ def _obtener_resultado_contornos_activos(
     inicializacion: Tuple[int, int, int, int],
     color_in: Tuple[int, int, int],
     color_out: Tuple[int, int, int],
-    maximo_iteraciones: int
+    maximo_iteraciones: int,
 ) -> np.ndarray:
     """Ejecuta los contornos activos y dibuja L_in y L_out en los colores personalizados."""
     phi, L_in, L_out = funciones.aplicar_segmentacion_basado_intercambio_pixels(
@@ -1558,6 +1559,7 @@ def _obtener_resultado_contornos_activos(
             resultado[py, px] = color_out
 
     return resultado
+
 
 def iniciar_aplicacion() -> None:
     """Punto de inicialización único de la aplicación GUI."""

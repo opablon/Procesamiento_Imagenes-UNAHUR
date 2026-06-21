@@ -1841,116 +1841,128 @@ def aplicar_detector_susan(imagen: np.ndarray, t: float = 15.0, tolerancia: floa
 # --- TRANSFORMADA DE HOUGH ---
 
 
-def _inicializar_espacio_hough(
-    alto: int, ancho: int, res_theta: float, res_rho: float
+def _subdividir_plano_parametrico(
+    alto: int, ancho: int, res_theta: float, res_r: float
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float]:
     """
-    Subdivide el espacio de parámetros (r, theta) discretizando en una cantidad específica de puntos.
+    Subdivide el plano (r, theta) discretizando en una cantidad específica de puntos.
     """
-    # El rango para theta es +-90 grados
+    # El rango para theta es +-90 grados.
     thetas = np.deg2rad(np.arange(-90.0, 90.0, res_theta))
 
-    # El rango para r es [-sqrt(2)*D, sqrt(2)*D] donde D = max(ancho, alto)
+    # El rango para r es [-sqrt(2)*D, sqrt(2)*D] donde D = max(ancho, alto).
     d_max = max(ancho, alto)
     r_max = np.sqrt(2) * d_max
-    rhos = np.arange(-r_max, r_max, res_rho)
+    erres = np.arange(-r_max, r_max, res_r)
 
-    # La matriz acumulador A tiene la misma dimensión que la discretización
-    acumulador = np.zeros((len(rhos), len(thetas)), dtype=np.uint64)
+    # La matriz acumulador A tiene la misma dimensión que la discretización.
+    acumulador = np.zeros((len(erres), len(thetas)), dtype=np.uint64)
 
-    return acumulador, thetas, rhos, r_max
+    return acumulador, thetas, erres, r_max
 
 
-def _extraer_maximos_acumulador(
-    acumulador: np.ndarray, thetas: np.ndarray, rhos: np.ndarray, umbral: int
-) -> List[Tuple[float, float]]:
+def _aumentar_acumulador(
+    imagen_binaria: np.ndarray,
+    acumulador: np.ndarray,
+    thetas: np.ndarray,
+    erres: np.ndarray,
+    res_r: float,
+    r_max: float,
+) -> np.ndarray:
     """
-    Examina el contenido de las celdas del acumulador y devuelve las posiciones 'MAS VOTADAS'
-    que superan el umbral definido.
+    Para cada pixel blanco de la imagen, evalúa si cumple la ecuación normal
+    de la recta. En caso afirmativo, aumenta la celda correspondiente del acumulador.
     """
-    # Extrae índices con altas concentraciones (umbralizar)
-    indices_rho, indices_theta = np.where(acumulador >= umbral)
-
-    rectas = []
-    for i in range(len(indices_rho)):
-        rho_val = rhos[indices_rho[i]]
-        theta_val = thetas[indices_theta[i]]
-        rectas.append((rho_val, theta_val))
-
-    return rectas
-
-
-def aplicar_transformada_hough_rectas(
-    imagen_binaria: np.ndarray, res_theta: float = 1.0, res_rho: float = 1.0, umbral: int = 100
-) -> Tuple[np.ndarray, List[Tuple[float, float]], np.ndarray, np.ndarray]:
-    """
-    Implementa la Transformada de Hough clásica para la detección de rectas.
-    Requiere que la imagen de entrada sea binaria (previamente procesada por un detector de bordes).
-    """
-    if not _es_imagen_valida(imagen_binaria):
-        raise ValueError("Imagen no soportada.")
-    alto, ancho = imagen_binaria.shape
-
-    acumulador, thetas, rhos, r_max = _inicializar_espacio_hough(alto, ancho, res_theta, res_rho)
-
-    # Precalcular senos y cosenos para evitar cómputo repetitivo en el bucle
     cos_t = np.cos(thetas)
     sin_t = np.sin(thetas)
 
-    # Encontrar las coordenadas de cada pixel blanco
-    y_idxs, x_idxs = np.nonzero(imagen_binaria)
+    # Encontrar las coordenadas (x_k, y_k) de cada pixel blanco
+    y_k_idxs, x_k_idxs = np.nonzero(imagen_binaria)
 
-    # Votación en el espacio paramétrico
-    for i in range(len(x_idxs)):
-        x = x_idxs[i]
-        y = y_idxs[i]
+    for k in range(len(x_k_idxs)):
+        x_k = x_k_idxs[k]
+        y_k = y_k_idxs[k]
 
         for j in range(len(thetas)):
-            # Decidir si cumple la ecuación normal de la recta
-            # r = x*cos(theta) + y*sin(theta)
-            rho_calculado = x * cos_t[j] + y * sin_t[j]
+            # Ecuación normal de la recta
+            r_calculado = x_k * cos_t[j] + y_k * sin_t[j]
 
-            # Mapear el valor de rho al índice del acumulador según la discretización
-            rho_idx = int(np.round((rho_calculado + r_max) / res_rho))
+            # Condición analítica: |r_i - x_k*cos(theta_j) - y_k*sin(theta_j)| < epsilon
+            i = int(np.round((r_calculado + r_max) / res_r))
 
-            # Si la ecuación se cumple dentro de la discretización, se aumenta el acumulador
-            if 0 <= rho_idx < len(rhos):
-                acumulador[rho_idx, j] += 1
+            if 0 <= i < len(erres):
+                acumulador[i, j] += 1
 
-    rectas = _extraer_maximos_acumulador(acumulador, thetas, rhos, umbral)
-
-    return acumulador, rectas, thetas, rhos
+    return acumulador
 
 
-def dibujar_rectas_hough(imagen_fondo: np.ndarray, rectas: list, color: list = [255, 0, 0]) -> np.ndarray:
-    """Dibuja las rectas (rho, theta) sobre una copia de la imagen de fondo."""
-    if not _es_imagen_valida(imagen_fondo):
-        raise ValueError("Imagen no soportada.")
-    alto, ancho = imagen_fondo.shape[:2]
+def _examinar_celdas_acumulador(
+    acumulador: np.ndarray, thetas: np.ndarray, erres: np.ndarray, umbral: int
+) -> List[Tuple[float, float]]:
+    """
+    Examina el contenido de las celdas del acumulador y extrae aquellas con
+    altas concentraciones mediante umbralización.
+    """
+    indices_r, indices_theta = np.where(acumulador >= umbral)
 
-    # Asegurar lienzo RGB
-    if imagen_fondo.ndim == 2:
-        imagen_salida = np.stack((imagen_fondo,) * 3, axis=-1)
-    else:
-        imagen_salida = imagen_fondo.copy()
+    rectas_encontradas = []
+    for k in range(len(indices_r)):
+        r_val = erres[indices_r[k]]
+        theta_val = thetas[indices_theta[k]]
+        rectas_encontradas.append((r_val, theta_val))
 
-    for rho, theta in rectas:
+    return rectas_encontradas
+
+
+def _graficar_rectas_encontradas(alto: int, ancho: int, rectas_parametros: List[Tuple[float, float]]) -> np.ndarray:
+    """
+    Grafica las rectas encontradas sobre una matriz con fondo negro.
+    Retorna una matriz binaria de tipo np.uint8.
+    """
+    mapa_rectas = np.zeros((alto, ancho), dtype=np.uint8)
+
+    for r, theta in rectas_parametros:
         cos_t = np.cos(theta)
         sin_t = np.sin(theta)
 
-        # Evitar huecos en la recta analizando la inclinación
         if abs(sin_t) > abs(cos_t):
+            # La recta tiende a ser horizontal, se itera sobre X
             for x in range(ancho):
-                y = int(np.round((rho - x * cos_t) / sin_t))
+                y = int(np.round((r - x * cos_t) / sin_t))
                 if 0 <= y < alto:
-                    imagen_salida[y, x] = color
+                    mapa_rectas[y, x] = 255
         else:
+            # La recta tiende a ser vertical, se itera sobre Y
             for y in range(alto):
-                x = int(np.round((rho - y * sin_t) / cos_t))
+                x = int(np.round((r - y * sin_t) / cos_t))
                 if 0 <= x < ancho:
-                    imagen_salida[y, x] = color
+                    mapa_rectas[y, x] = 255
 
-    return imagen_salida
+    return mapa_rectas
+
+
+def aplicar_transformada_hough_rectas(
+    imagen_binaria: np.ndarray, res_theta: float = 1.0, res_r: float = 1.0, umbral: int = 100
+) -> np.ndarray:
+    """
+    Implementa la Transformada de Hough para la detección de rectas.
+    Retorna únicamente la lista de rectas detectadas (r, theta).
+    """
+    alto, ancho = imagen_binaria.shape
+
+    # Subdivisión del plano paramétrico
+    acumulador, thetas, erres, r_max = _subdividir_plano_parametrico(alto, ancho, res_theta, res_r)
+
+    # Votación en el acumulador
+    acumulador = _aumentar_acumulador(imagen_binaria, acumulador, thetas, erres, res_r, r_max)
+
+    # Extracción de máximos
+    rectas_parametros = _examinar_celdas_acumulador(acumulador, thetas, erres, umbral)
+
+    # Graficado de rectas detectadas
+    mapa_rectas = _graficar_rectas_encontradas(alto, ancho, rectas_parametros)
+
+    return mapa_rectas
 
 
 # --- CALCULAR Fd(x) ---

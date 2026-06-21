@@ -1382,7 +1382,7 @@ class AppProcesamiento:
         t = pedir_float("SUSAN", "Umbral de brillo (t) (por defecto 15.0):", minvalue=0.0)
         if t is None:
             return
-        tol = pedir_float("SUSAN", "Tolerancia (por defecto 0.1):", minvalue=0.0)
+        tol = pedir_float("SUSAN", "Tolerancia (por defecto 0.15):", minvalue=0.0)
         if tol is None:
             return
         modo = pedir_opcion("SUSAN", "Visualización:", ["Bordes", "Esquinas", "Ambos"])

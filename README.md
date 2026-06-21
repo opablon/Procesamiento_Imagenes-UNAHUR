@@ -126,7 +126,7 @@ Para cumplir con los objetivos pedagógicos de la UNAHUR, este software se rige 
 * **Detector SUSAN (Smallest Univaluate Assimilating Nucleus):**
   * Detección de bordes mediante máscara circular de 37 píxeles y evaluación de la similitud del núcleo USAN.
   * Detección de esquinas utilizando el mismo núcleo y umbrales específicos de similitud de nivel de gris.
-  * Visualización flexible de bordes, esquinas o ambos combinados (mostrando esquinas en rojo y bordes en verde).
+  * Visualización flexible de bordes, esquinas o ambos combinados (mostrando esquinas en rojo y bordes en verde) sobre un fondo negro o superpuestos directamente en la imagen actual.
 * **Transformada de Hough (Clásica para Rectas):**
   * Discretización y parametrización del espacio acumulador binario utilizando variables $(\rho, \theta)$.
   * Algoritmo de votación para píxeles blancos (bordes) y extracción de máximos locales en base a un umbral configurable de votos mínimos.

@@ -1767,13 +1767,13 @@ def _sugerir_umbrales_canny(matriz_original: np.ndarray) -> Tuple[float, float]:
 def aplicar_detector_susan(
     imagen: np.ndarray,
     t: float = 15.0,
-    tolerancia: float = 0.1
+    tolerancia: float = 0.15
 ) -> tuple:
     """
     Detector de bordes y esquinas S.U.S.A.N.
     Retorna dos matrices: mapa de bordes y mapa de esquinas.
     """
-    # Definición geométrica de la máscara circular de 37 pixels (radios teóricos: 3,5,7,7,7,5,3)
+    # Definición geométrica de la máscara circular de 37 pixels
     desplazamientos = [
                             (-3, -1), (-3, 0), (-3, 1),
                   (-2, -2), (-2, -1), (-2, 0), (-2, 1), (-2, 2),
@@ -1807,10 +1807,12 @@ def aplicar_detector_susan(
                 s_r0 = 1.0 - (n_r0 / 37.0)
 
                 # Clasificación
-                if abs(s_r0 - 0.5) <= tolerancia:
-                    mapa_bordes[x, y] = 255
-                elif abs(s_r0 - 0.75) <= tolerancia:
+                if abs(s_r0 - 0.75) <= tolerancia:
                     mapa_esquinas[x, y] = 255
+                elif abs(s_r0 - 0.5) <= tolerancia:
+                    mapa_bordes[x, y] = 255
+                elif abs(s_r0 - 0.0) <= tolerancia:
+                    pass  # Zona homogénea: no es borde ni esquina
 
     # CASO RGB
     else:
@@ -1828,10 +1830,12 @@ def aplicar_detector_susan(
 
                     s_r0 = 1.0 - (n_r0 / 37.0)
 
-                    if abs(s_r0 - 0.5) <= tolerancia:
-                        mapa_bordes[x, y] = 255
-                    elif abs(s_r0 - 0.75) <= tolerancia:
+                    if abs(s_r0 - 0.75) <= tolerancia:
                         mapa_esquinas[x, y] = 255
+                    elif abs(s_r0 - 0.5) <= tolerancia:
+                        mapa_bordes[x, y] = 255
+                    elif abs(s_r0 - 0.0) <= tolerancia:
+                        pass  # Zona homogénea: no es borde ni esquina
 
     return mapa_bordes, mapa_esquinas
 

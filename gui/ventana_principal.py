@@ -1522,13 +1522,23 @@ def _obtener_resultado_hough(
 ) -> np.ndarray:
     """Halla las rectas mediante Hough directamente sobre la imagen binarizada y las dibuja."""
     # Aplicar núcleo de Hough directamente a la imagen actual (ya binarizada)
-    acumulador, rectas, thetas, rhos = funciones.aplicar_transformada_hough_rectas(
-        imagen, res_theta=res_theta, res_rho=1.0, umbral=umbral_hough
+    mapa_rectas = funciones.aplicar_transformada_hough_rectas(
+        imagen, res_theta=res_theta, res_r=1.0, umbral=umbral_hough
     )
 
     # Si se especificó un fondo, dibujamos sobre él. Si no, sobre la imagen binarizada
     fondo = imagen_fondo if imagen_fondo is not None else imagen
-    return funciones.dibujar_rectas_hough(fondo, rectas)
+
+    # Preparar lienzo a color copiando el fondo
+    if fondo.ndim == 2:
+        resultado = np.stack((fondo,) * 3, axis=-1)
+    else:
+        resultado = fondo.copy()
+
+    # Inyectar color rojo para las rectas detectadas
+    resultado[mapa_rectas == 255] = [255, 0, 0]
+
+    return resultado
 
 
 def _obtener_resultado_contornos_activos(

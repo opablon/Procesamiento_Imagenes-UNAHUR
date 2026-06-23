@@ -27,21 +27,40 @@ def _obtener_raiz_actual() -> tk.Tk | ctk.CTk | None:
 
 def _poner_ventana_al_frente(ventana: tk.Toplevel, parent: Any = None) -> None:
     """Eleva una ventana secundaria sin dejarla fijada como always-on-top."""
+
+    def elevar() -> None:
+        try:
+            if parent is not None:
+                ventana.lift(parent)
+            else:
+                ventana.lift()
+        except Exception:
+            pass
+
+        try:
+            ventana.focus_force()
+        except Exception:
+            pass
+
     try:
-        if parent is not None:
-            ventana.lift(parent)
-        else:
-            ventana.lift()
+        ventana.update_idletasks()
     except Exception:
         pass
 
     try:
-        ventana.focus_force()
+        elevar()
     except Exception:
         pass
 
     try:
         ventana.attributes("-topmost", False)
+    except Exception:
+        pass
+
+    try:
+        ventana.after_idle(elevar)
+        ventana.after(75, elevar)
+        ventana.after(250, elevar)
     except Exception:
         pass
 

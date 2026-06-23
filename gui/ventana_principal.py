@@ -14,50 +14,164 @@ ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 
+def _obtener_raiz_actual() -> tk.Tk | ctk.CTk | None:
+    """Devuelve la raíz activa de Tk si ya existe."""
+    try:
+        raiz = getattr(tk, "_default_root", None)
+        if raiz is not None and raiz.winfo_exists():
+            return raiz
+    except Exception:
+        pass
+    return None
+
+
+def _poner_ventana_al_frente(ventana: tk.Toplevel, parent: Any = None) -> None:
+    """Eleva una ventana secundaria sin dejarla fijada como always-on-top."""
+    try:
+        if parent is not None:
+            ventana.lift(parent)
+        else:
+            ventana.lift()
+    except Exception:
+        pass
+
+    try:
+        ventana.focus_force()
+    except Exception:
+        pass
+
+    try:
+        ventana.attributes("-topmost", False)
+    except Exception:
+        pass
+
+
+
 def pedir_entero(
     titulo: str, mensaje: str, minvalue: Optional[int] = None, maxvalue: Optional[int] = None
 ) -> Optional[int]:
-    dialog = ctk.CTkInputDialog(text=mensaje, title=titulo)
-    val = dialog.get_input()
-    if not val:
-        return None
-    try:
-        i = int(val)
-        if minvalue is not None and i < minvalue:
-            return None
-        if maxvalue is not None and i > maxvalue:
-            return None
-        return i
-    except ValueError:
-        return None
+    parent = _obtener_raiz_actual()
+    dialog = ctk.CTkToplevel(parent) if parent is not None else ctk.CTkToplevel()
+    dialog.title(titulo)
+    dialog.geometry("350x180")
+    _poner_ventana_al_frente(dialog, parent)
+    dialog.wait_visibility()
+    dialog.grab_set()
+
+    resultado: list[Optional[int]] = [None]
+
+    lbl = ctk.CTkLabel(dialog, text=mensaje)
+    lbl.pack(pady=10)
+
+    entry = ctk.CTkEntry(dialog)
+    entry.pack(pady=10)
+    entry.focus()
+    entry.select_range(0, tk.END)
+
+    def on_ok(event=None):
+        val = entry.get().strip()
+        if not val:
+            dialog.destroy()
+            return
+        try:
+            entero = int(val)
+            if minvalue is not None and entero < minvalue:
+                messagebox.showerror("Error", f"El valor debe ser >= {minvalue}", parent=dialog)
+                return
+            if maxvalue is not None and entero > maxvalue:
+                messagebox.showerror("Error", f"El valor debe ser <= {maxvalue}", parent=dialog)
+                return
+            resultado[0] = entero
+            dialog.destroy()
+        except ValueError:
+            messagebox.showerror("Error", "Ingrese un número entero válido.", parent=dialog)
+
+    def on_cancel():
+        dialog.destroy()
+
+    entry.bind("<Return>", on_ok)
+    dialog.protocol("WM_DELETE_WINDOW", on_cancel)
+
+    botones = ctk.CTkFrame(dialog, fg_color="transparent")
+    botones.pack(pady=10)
+
+    btn_ok = ctk.CTkButton(botones, text="Aceptar", command=on_ok)
+    btn_ok.pack(side=tk.LEFT, padx=5)
+
+    btn_cancel = ctk.CTkButton(botones, text="Cancelar", command=on_cancel)
+    btn_cancel.pack(side=tk.LEFT, padx=5)
+
+    dialog.wait_window()
+    return resultado[0]
 
 
 def pedir_float(
     titulo: str, mensaje: str, minvalue: Optional[float] = None, maxvalue: Optional[float] = None
 ) -> Optional[float]:
-    dialog = ctk.CTkInputDialog(text=mensaje, title=titulo)
-    val = dialog.get_input()
-    if not val:
-        return None
-    try:
-        f = float(val)
-        if minvalue is not None and f < minvalue:
-            return None
-        if maxvalue is not None and f > maxvalue:
-            return None
-        return f
-    except ValueError:
-        return None
+    parent = _obtener_raiz_actual()
+    dialog = ctk.CTkToplevel(parent) if parent is not None else ctk.CTkToplevel()
+    dialog.title(titulo)
+    dialog.geometry("350x180")
+    _poner_ventana_al_frente(dialog, parent)
+    dialog.wait_visibility()
+    dialog.grab_set()
+
+    resultado: list[Optional[float]] = [None]
+
+    lbl = ctk.CTkLabel(dialog, text=mensaje)
+    lbl.pack(pady=10)
+
+    entry = ctk.CTkEntry(dialog)
+    entry.pack(pady=10)
+    entry.focus()
+    entry.select_range(0, tk.END)
+
+    def on_ok(event=None):
+        val = entry.get().strip()
+        if not val:
+            dialog.destroy()
+            return
+        try:
+            numero = float(val)
+            if minvalue is not None and numero < minvalue:
+                messagebox.showerror("Error", f"El valor debe ser >= {minvalue}", parent=dialog)
+                return
+            if maxvalue is not None and numero > maxvalue:
+                messagebox.showerror("Error", f"El valor debe ser <= {maxvalue}", parent=dialog)
+                return
+            resultado[0] = numero
+            dialog.destroy()
+        except ValueError:
+            messagebox.showerror("Error", "Ingrese un número decimal válido.", parent=dialog)
+
+    def on_cancel():
+        dialog.destroy()
+
+    entry.bind("<Return>", on_ok)
+    dialog.protocol("WM_DELETE_WINDOW", on_cancel)
+
+    botones = ctk.CTkFrame(dialog, fg_color="transparent")
+    botones.pack(pady=10)
+
+    btn_ok = ctk.CTkButton(botones, text="Aceptar", command=on_ok)
+    btn_ok.pack(side=tk.LEFT, padx=5)
+
+    btn_cancel = ctk.CTkButton(botones, text="Cancelar", command=on_cancel)
+    btn_cancel.pack(side=tk.LEFT, padx=5)
+
+    dialog.wait_window()
+    return resultado[0]
 
 
 def pedir_float_sug(
     titulo: str, mensaje: str, valor_sugerido: float, minvalue: Optional[float] = None, maxvalue: Optional[float] = None
 ) -> Optional[float]:
     """Muestra un diálogo de entrada pre-relleno con el valor sugerido."""
-    dialog = ctk.CTkToplevel()
+    parent = _obtener_raiz_actual()
+    dialog = ctk.CTkToplevel(parent) if parent is not None else ctk.CTkToplevel()
     dialog.title(titulo)
     dialog.geometry("350x180")
-    dialog.attributes("-topmost", True)
+    _poner_ventana_al_frente(dialog, parent)
     dialog.wait_visibility()
     dialog.grab_set()
 
@@ -103,15 +217,57 @@ def pedir_float_sug(
 
 
 def pedir_string(titulo: str, mensaje: str) -> Optional[str]:
-    dialog = ctk.CTkInputDialog(text=mensaje, title=titulo)
-    return dialog.get_input()
+    parent = _obtener_raiz_actual()
+    dialog = ctk.CTkToplevel(parent) if parent is not None else ctk.CTkToplevel()
+    dialog.title(titulo)
+    dialog.geometry("350x180")
+    _poner_ventana_al_frente(dialog, parent)
+    dialog.wait_visibility()
+    dialog.grab_set()
+
+    resultado: list[Optional[str]] = [None]
+
+    lbl = ctk.CTkLabel(dialog, text=mensaje)
+    lbl.pack(pady=10)
+
+    entry = ctk.CTkEntry(dialog)
+    entry.pack(pady=10)
+    entry.focus()
+    entry.select_range(0, tk.END)
+
+    def on_ok(event=None):
+        val = entry.get().strip()
+        if not val:
+            dialog.destroy()
+            return
+        resultado[0] = val
+        dialog.destroy()
+
+    def on_cancel():
+        dialog.destroy()
+
+    entry.bind("<Return>", on_ok)
+    dialog.protocol("WM_DELETE_WINDOW", on_cancel)
+
+    botones = ctk.CTkFrame(dialog, fg_color="transparent")
+    botones.pack(pady=10)
+
+    btn_ok = ctk.CTkButton(botones, text="Aceptar", command=on_ok)
+    btn_ok.pack(side=tk.LEFT, padx=5)
+
+    btn_cancel = ctk.CTkButton(botones, text="Cancelar", command=on_cancel)
+    btn_cancel.pack(side=tk.LEFT, padx=5)
+
+    dialog.wait_window()
+    return resultado[0]
 
 
 def pedir_opcion(titulo: str, mensaje: str, opciones: list[str]) -> Optional[str]:
-    dialog = ctk.CTkToplevel()
+    parent = _obtener_raiz_actual()
+    dialog = ctk.CTkToplevel(parent) if parent is not None else ctk.CTkToplevel()
     dialog.title(titulo)
     dialog.geometry("300x150")
-    dialog.attributes("-topmost", True)
+    _poner_ventana_al_frente(dialog, parent)
     dialog.wait_visibility()
     dialog.grab_set()
 
@@ -175,7 +331,7 @@ class DialogoConfiguracionContornos(ctk.CTkToplevel):
         super().__init__(parent)
         self.title("Configuración - Contornos Activos")
         self.geometry("450x380")
-        self.attributes("-topmost", True)
+        _poner_ventana_al_frente(self, parent)
         self.wait_visibility()
         self.grab_set()
 
@@ -804,7 +960,7 @@ class AppProcesamiento:
                     self._dibujar()
 
         except Exception as err:
-            messagebox.showerror("Error", str(err))
+            messagebox.showerror("Error", str(err), parent=self.root)
 
     def _dibujar(self) -> None:
         """Actualiza el canvas con la matriz cargada."""
@@ -839,6 +995,7 @@ class AppProcesamiento:
         """Abre un Toplevel y muestra una figura de Matplotlib con la opción de escala logarítmica."""
         top = ctk.CTkToplevel(self.root)
         top.title(titulo)
+        _poner_ventana_al_frente(top, self.root)
 
         # Frame de controles en la parte inferior
         frame_controles = ctk.CTkFrame(top)
@@ -1096,7 +1253,7 @@ class AppProcesamiento:
             self.gestor_menus.cambiar_estado(tk.NORMAL)
             self.set_estado("Listo", "")
         except Exception as e:
-            messagebox.showerror("Error", f"No se pudo cargar la imagen: {str(e)}")
+            messagebox.showerror("Error", f"No se pudo cargar la imagen: {str(e)}", parent=self.root)
             self.cerrar_imagen()
 
     def cerrar_imagen(self) -> None:
@@ -1124,7 +1281,7 @@ class AppProcesamiento:
             if ruta:
                 funciones.guardar_imagen(self.matriz_actual, ruta)
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            messagebox.showerror("Error", str(e), parent=self.root)
 
     # --- Motor Genérico de Operaciones ---
 
@@ -1137,10 +1294,10 @@ class AppProcesamiento:
             try:
                 AppProcesamiento(ctk.CTkToplevel(self.root), res, self._limpiar_nombre(sufijo))
             except Exception as e:
-                messagebox.showerror("Error", f"Error al abrir la ventana: {str(e)}")
+                messagebox.showerror("Error", f"Error al abrir la ventana: {str(e)}", parent=self.root)
 
         def on_error(err_msg: str) -> None:
-            messagebox.showerror("Error", err_msg)
+            messagebox.showerror("Error", err_msg, parent=self.root)
 
         self._ejecutar_tarea_proceso(funcion_core, on_success, on_error, *args)
 
@@ -1159,7 +1316,7 @@ class AppProcesamiento:
             m2 = funciones.cargar_imagen(ruta2, *dim) if isinstance(dim, tuple) else funciones.cargar_imagen(ruta2)
             self._ejecutar_operacion_core(funciones.restar_imagenes, "resta", m2)
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            messagebox.showerror("Error", str(e), parent=self.root)
 
     def copiar(self) -> None:
         if self.matriz_actual is None:
@@ -1168,7 +1325,7 @@ class AppProcesamiento:
             coords = self._obtener_roi_validada()
             self._ejecutar_operacion_core(funciones.copiar_region, "copia", *coords)
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            messagebox.showerror("Error", str(e), parent=self.root)
 
     def promedio(self) -> None:
         if self.matriz_actual is None:
@@ -1192,7 +1349,7 @@ class AppProcesamiento:
 
             self.color_sample.configure(fg_color=hex_color)
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            messagebox.showerror("Error", str(e), parent=self.root)
             self.lbl_status.configure(text="Listo")
         finally:
             self.set_estado("Listo", "")
@@ -1273,10 +1430,10 @@ class AppProcesamiento:
                 fig = preparar_histograma(histograma, titulo=nombre_ventana)
                 self._mostrar_ventana_grafico(fig, nombre_ventana, histograma)
             except Exception as e:
-                messagebox.showerror("Error", f"Error al generar histograma: {str(e)}")
+                messagebox.showerror("Error", f"Error al generar histograma: {str(e)}", parent=self.root)
 
         def on_error(err_msg: str) -> None:
-            messagebox.showerror("Error", err_msg)
+            messagebox.showerror("Error", err_msg, parent=self.root)
 
         # Si la imagen es RGB (3 canales o más), calculamos por separado cada canal
         if self.matriz_actual.ndim == 3 and self.matriz_actual.shape[2] >= 3:
@@ -1426,7 +1583,7 @@ class AppProcesamiento:
                     )
                     return
             except Exception as e:
-                messagebox.showerror("Error", f"No se pudo cargar la imagen de fondo: {str(e)}")
+                messagebox.showerror("Error", f"No se pudo cargar la imagen de fondo: {str(e)}", parent=self.root)
                 return
 
         res_theta = pedir_float("Hough", "Resolución Theta en grados (ej: 1.0):", minvalue=0.1)
